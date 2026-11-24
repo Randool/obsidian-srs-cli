@@ -1,0 +1,46 @@
+{
+  "name": "obsidian-srs-cli",
+  "version": "1.0.0",
+  "description": "Terminal TUI for obsidian-spaced-repetition flashcards: shares the plugin's inline schedule data, shows interval previews, supports undo and shuffled order.",
+  "type": "module",
+  "bin": {
+    "obsrs": "./srs.js"
+  },
+  "files": [
+    "srs.js",
+    "src/",
+    "assets/banner.svg",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "start": "node srs.js",
+    "test": "node --test \"test/*.test.js\"",
+    "prepublishOnly": "npm test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Randool/obsidian-srs-cli.git"
+  },
+  "homepage": "https://github.com/Randool/obsidian-srs-cli#readme",
+  "bugs": {
+    "url": "https://github.com/Randool/obsidian-srs-cli/issues"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "spaced-repetition",
+    "flashcards",
+    "sm-2",
+    "srs",
+    "cli",
+    "tui",
+    "terminal"
+  ],
+  "author": "Randool",
+  "license": "MIT"
+}
