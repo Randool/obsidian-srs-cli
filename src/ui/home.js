@@ -7,33 +7,35 @@ import { helpScreen, hints, titleBar } from "./chrome.js";
 import { deckStats, orderLabel } from "../session.js";
 import { t } from "../i18n.js";
 
+/** 主页列表行：全部 + 每个 deck，有活的 deck 排前面。 */
+export function homeRows(cards, today) {
+  const stats = deckStats(cards, today);
+  const total = (key) => stats.reduce((a, s) => a + s[key], 0);
+  return [
+    {
+      deck: null,
+      label: t("common.all"),
+      due: total("due"),
+      new: total("new"),
+      total: cards.length,
+    },
+    ...stats.map((s) => ({ label: s.deck, ...s })),
+  ]
+    .map((r) => ({ ...r, todo: r.due + r.new }))
+    .sort((a, b) => {
+      if (a.deck === null) return -1;
+      if (b.deck === null) return 1;
+      return b.todo - a.todo || (a.label < b.label ? -1 : 1);
+    });
+}
+
 export async function runHome({ screen, library, today, vaultName }) {
   let cursor = 0;
   let help = false;
   let flash = "";
   let order = "plugin";
 
-  const rows = () => {
-    const stats = deckStats(library.cards, today);
-    const total = (key) => stats.reduce((a, s) => a + s[key], 0);
-    return [
-      {
-        deck: null,
-        label: t("common.all"),
-        due: total("due"),
-        new: total("new"),
-        total: library.cards.length,
-      },
-      ...stats,
-    ]
-      .map((r) => ({ ...r, todo: r.due + r.new }))
-      .sort((a, b) => {
-        if (a.deck === null) return -1;
-        if (b.deck === null) return 1;
-        if (Boolean(a.todo) !== Boolean(b.todo)) return b.todo - a.todo;
-        return b.todo - a.todo || (a.label < b.label ? -1 : 1);
-      });
-  };
+  const rows = () => homeRows(library.cards, today);
 
   const draw = () => {
     const W = screen.columns;
