@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pickVault, readConfig, writeConfig, configPath, SOURCE_LABEL } from "../src/config.js";
-import { validateVault, DEFAULTS } from "../src/vault.js";
+import { configPath, pickVault, readConfig, SOURCE_LABEL, writeConfig } from "../src/config.js";
+import { DEFAULTS, validateVault } from "../src/vault.js";
 
 function tmpFile(name = "config.json") {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "srs-conf-"));
@@ -17,7 +17,7 @@ function fakeVault() {
   fs.mkdirSync(path.join(dir, ".obsidian/plugins/obsidian-spaced-repetition"), { recursive: true });
   fs.writeFileSync(
     path.join(dir, ".obsidian/plugins/obsidian-spaced-repetition/data.json"),
-    JSON.stringify({ settings: { ...DEFAULTS } })
+    JSON.stringify({ settings: { ...DEFAULTS } }),
   );
   return dir;
 }

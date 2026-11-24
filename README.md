@@ -185,7 +185,8 @@ test/*.test.js      45 node:test cases
 ```
 
 ```bash
-npm test
+npm test          # 52 node:test cases
+npm run format    # deno fmt (brew install deno), 110 columns
 ```
 
 ## Not supported

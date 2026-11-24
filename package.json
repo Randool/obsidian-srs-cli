@@ -17,6 +17,8 @@
   "scripts": {
     "start": "node srs.js",
     "test": "node --test \"test/*.test.js\"",
+    "format": "deno fmt",
+    "format:check": "deno fmt --check",
     "prepublishOnly": "npm test"
   },
   "engines": {

@@ -6,10 +6,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { backupRoot, applySchedule, countSchedules } from "../src/store.js";
+import { applySchedule, backupRoot, countSchedules } from "../src/store.js";
 import { parseFile } from "../src/parser.js";
 import { DEFAULTS } from "../src/vault.js";
-import { resolveLang, makeT, DICT } from "../src/i18n.js";
+import { DICT, makeT, resolveLang } from "../src/i18n.js";
 
 const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 
@@ -88,7 +88,10 @@ test("备份保留上限：超过 SRS_BACKUP_KEEP 的旧备份被清掉", () => 
 
   const dirs = fs.readdirSync(root).filter((n) => fs.statSync(path.join(root, n)).isDirectory());
   assert.equal(dirs.length, 2, `应只剩 2 份，实得 ${dirs.length}`);
-  assert.ok(dirs.some((d) => d > "20200103"), "新备份要在");
+  assert.ok(
+    dirs.some((d) => d > "20200103"),
+    "新备份要在",
+  );
 });
 
 test("--no-backup / SRS_NO_BACKUP=1 不写备份", () => {
@@ -140,7 +143,12 @@ test("双语 README：两份都在、互相链接、命令名一致", () => {
   const zh = fs.readFileSync(path.join(ROOT, "README.zh-CN.md"), "utf8");
   assert.match(en, /\[简体中文\]\(README\.zh-CN\.md\)/, "英文版要链到中文版");
   assert.match(zh, /\[English\]\(README\.md\)/, "中文版要链回英文版");
-  for (const [name, text] of [["README.md", en], ["README.zh-CN.md", zh]]) {
+  for (
+    const [name, text] of [
+      ["README.md", en],
+      ["README.zh-CN.md", zh],
+    ]
+  ) {
     assert.match(text, /obsrs review --shuffle/, `${name} 里应该是 obsrs 命令`);
     assert.ok(!/npm i -g obsrs\s/.test(text), `${name} 的安装命令要用包名 obsidian-srs-cli`);
   }
@@ -149,7 +157,12 @@ test("双语 README：两份都在、互相链接、命令名一致", () => {
 
   // banner：文件在、两份 README 都引用、也在发布清单里
   assert.ok(fs.existsSync(path.join(ROOT, "assets/banner.svg")), "assets/banner.svg 应存在");
-  for (const [name, text] of [["README.md", en], ["README.zh-CN.md", zh]]) {
+  for (
+    const [name, text] of [
+      ["README.md", en],
+      ["README.zh-CN.md", zh],
+    ]
+  ) {
     assert.match(text, /assets\/banner\.svg/, `${name} 应引用 banner`);
   }
   assert.ok(pkg2.files.includes("assets/banner.svg"), "banner 要随包发布");

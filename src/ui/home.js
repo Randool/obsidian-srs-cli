@@ -2,11 +2,11 @@
  * 主页：选 deck、看今天有多少活、决定从哪开始。
  * 返回 { action: 'review', deck, mode } 或 { action: 'refresh' | 'quit' }
  */
-import { C, pad, padStart, clip, strWidth } from "./ansi.js";
-import { titleBar, box, hints, helpScreen } from "./chrome.js";
+import { C, clip, pad, padStart } from "./ansi.js";
+import { helpScreen, hints, titleBar } from "./chrome.js";
 import { deckStats, filterCards, orderLabel } from "../session.js";
 import { t } from "../i18n.js";
-import { isNew, isDue } from "../schedule.js";
+import { isDue, isNew } from "../schedule.js";
 
 export async function runHome({ screen, library, today, vaultName }) {
   let cursor = 0;
@@ -19,7 +19,14 @@ export async function runHome({ screen, library, today, vaultName }) {
     const totalDue = stats.reduce((a, s) => a + s.due, 0);
     const totalNew = stats.reduce((a, s) => a + s.new, 0);
     const rows = [
-      { deck: null, label: t("common.all"), due: totalDue, new: totalNew, total: library.cards.length, todo: totalDue + totalNew },
+      {
+        deck: null,
+        label: t("common.all"),
+        due: totalDue,
+        new: totalNew,
+        total: library.cards.length,
+        todo: totalDue + totalNew,
+      },
       ...stats.map((s) => ({ deck: s.deck, label: s.deck, ...s })),
     ];
     // 有活儿的排前面，其余按名字
@@ -27,7 +34,7 @@ export async function runHome({ screen, library, today, vaultName }) {
       if (a.deck === null) return -1;
       if (b.deck === null) return 1;
       if (Boolean(a.todo) !== Boolean(b.todo)) return b.todo - a.todo; // 有活的排前面
-      if (a.todo !== b.todo) return b.todo - a.todo;                   // 积压多的更靠上
+      if (a.todo !== b.todo) return b.todo - a.todo; // 积压多的更靠上
       return a.label < b.label ? -1 : 1;
     });
     return rows;
@@ -66,7 +73,7 @@ export async function runHome({ screen, library, today, vaultName }) {
               ],
             ],
           ],
-        })
+        }),
       );
       return;
     }
@@ -83,7 +90,7 @@ export async function runHome({ screen, library, today, vaultName }) {
       ` ${C.dim}${t("common.today")}${C.reset} ${today}   ` +
         `${C.yellow}${t("home.segDue", { n: totalDue })}${C.reset} ${C.dim}·${C.reset} ` +
         `${C.cyan}${t("home.segNew", { n: totalNew })}${C.reset} ${C.dim}·${C.reset} ` +
-        `${C.dim}${t("home.segTotal", { n: rows[0].total })}${C.reset}`
+        `${C.dim}${t("home.segTotal", { n: rows[0].total })}${C.reset}`,
     );
     lines.push("");
 
@@ -98,8 +105,12 @@ export async function runHome({ screen, library, today, vaultName }) {
       const pointer = selected ? `${C.cyan}▸${C.reset}` : " ";
       const name = pad(clip(row.label, nameW), nameW);
       const counting =
-        `${row.due ? C.yellow : C.dim}${padStart(String(row.due), 4)}${C.reset}${C.dim} ${t("common.due")}${C.reset}  ` +
-        `${row.new ? C.cyan : C.dim}${padStart(String(row.new), 4)}${C.reset}${C.dim} ${t("common.new")}${C.reset}  ` +
+        `${row.due ? C.yellow : C.dim}${padStart(String(row.due), 4)}${C.reset}${C.dim} ${
+          t("common.due")
+        }${C.reset}  ` +
+        `${row.new ? C.cyan : C.dim}${padStart(String(row.new), 4)}${C.reset}${C.dim} ${
+          t("common.new")
+        }${C.reset}  ` +
         `${C.dim}${padStart(String(row.total), 5)} ${t("common.total")}${C.reset}`;
       const label = row.todo ? name : `${C.dim}${name}${C.reset}`;
       const line = ` ${pointer} ${selected ? `${C.bold}${label}${C.reset}` : label}   ${counting}`;
@@ -119,18 +130,20 @@ export async function runHome({ screen, library, today, vaultName }) {
           ["?", t("hint.help")],
           ["q", t("hint.quit")],
         ],
-        W
-      )
+        W,
+      ),
     );
     const info = rows[cursor].todo
       ? t("home.selected", {
-          deck: rows[cursor].label,
-          due: rows[cursor].due,
-          new: rows[cursor].new,
-          order: orderLabel(order),
-        })
+        deck: rows[cursor].label,
+        due: rows[cursor].due,
+        new: rows[cursor].new,
+        order: orderLabel(order),
+      })
       : t("home.selectedEmpty", { deck: rows[cursor].label });
-    lines.push(` ${flash ? `${C.yellow}${clip(flash, W - 2)}${C.reset}` : `${C.dim}${clip(info, W - 2)}${C.reset}`}`);
+    lines.push(
+      ` ${flash ? `${C.yellow}${clip(flash, W - 2)}${C.reset}` : `${C.dim}${clip(info, W - 2)}${C.reset}`}`,
+    );
     screen.draw(lines.slice(0, R));
   };
 
@@ -185,4 +198,4 @@ export async function runHome({ screen, library, today, vaultName }) {
   }
 }
 
-export { filterCards, isNew, isDue };
+export { filterCards, isDue, isNew };

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildQueue, shuffle, Session, orderLabel } from "../src/session.js";
+import { buildQueue, orderLabel, Session, shuffle } from "../src/session.js";
 import { DEFAULTS } from "../src/vault.js";
 import { isNew } from "../src/schedule.js";
 
@@ -20,7 +20,11 @@ function card(deck, n, { due = null, interval = null, ease = null } = {}) {
   };
 }
 
-const SEQ = { ...S, flashcardDeckOrder: "PrevDeckComplete_Sequential", flashcardCardOrder: "DueFirstSequential" };
+const SEQ = {
+  ...S,
+  flashcardDeckOrder: "PrevDeckComplete_Sequential",
+  flashcardCardOrder: "DueFirstSequential",
+};
 
 test("plugin 模式：逐 deck 成组，组内到期在前", () => {
   const cards = [
@@ -30,7 +34,10 @@ test("plugin 模式：逐 deck 成组，组内到期在前", () => {
     card("a", 2),
   ];
   const q = buildQueue(cards, SEQ, TODAY, { order: "plugin" });
-  assert.deepEqual(q.map((c) => c.front), ["a#1", "a#2", "b#1", "b#2"]);
+  assert.deepEqual(
+    q.map((c) => c.front),
+    ["a#1", "a#2", "b#1", "b#2"],
+  );
 });
 
 test("random 模式：跨 deck 混排（同一 deck 的卡不再成块）", () => {
@@ -78,7 +85,10 @@ test("会话中途重洗：已答部分不动，剩余部分重排", () => {
 
   const msg = s.reshuffle(() => 0.9);
   assert.match(msg, /2 张已打乱/);
-  assert.deepEqual(s.queue.slice(0, 2).map((c) => c.front), done);
+  assert.deepEqual(
+    s.queue.slice(0, 2).map((c) => c.front),
+    done,
+  );
   assert.deepEqual(new Set(s.queue.slice(2).map((c) => c.front)), new Set(before.slice(2)));
   assert.equal(s.queue.length, before.length);
 });

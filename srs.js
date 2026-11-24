@@ -35,7 +35,7 @@ obsrs — 终端复习 Obsidian Spaced Repetition 闪卡
   obsrs review -d science     只复习某个 deck（前缀匹配）
   obsrs review --new-only     只过新卡；--due-only 只过到期卡
   obsrs review -n 20          最多 20 张
-  obsrs review --dry-run      空跑一遍，不写笔记
+  obsrs review --dry-run      试运行，不写笔记
   obsrs review --shuffle      跨 deck 随机混排出题（默认照插件设置逐 deck 出）
   obsrs status [--json]       文本概览
   obsrs list [-d deck]        列卡片与排程
@@ -51,7 +51,7 @@ obsrs — 终端复习 Obsidian Spaced Repetition 闪卡
   --no-backup       这次不往磁盘留笔记备份
   --vault <路径>    Obsidian 库目录（只对这一次生效；长期配置用 obsrs config）
   -v, --version     版本号
-  -h, --help        这个帮助
+  -h, --help        显示本帮助
 
 复习界面按键
   Space/Enter 翻面       1-4 或 a/h/g/e 打分（Again/Hard/Good/Easy）
@@ -90,7 +90,7 @@ Options
   --no-backup         don't write a note backup this run
   --vault <path>      vault for this run only (use obsrs config for the default)
   -v, --version       print version
-  -h, --help          this help
+  -h, --help          show this help
 
 Keys
   Space/Enter reveal      1-4 or a/h/g/e grade (Again/Hard/Good/Easy)

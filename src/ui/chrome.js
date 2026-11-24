@@ -2,7 +2,7 @@
  * 界面零件：顶栏、方框、键位提示、帮助浮层。
  * 每个函数都只吃字符串、吐字符串，便于肉眼和测试同时检查。
  */
-import { C, pad, padStart, stripAnsi, strWidth, clip, wrap, center } from "./ansi.js";
+import { C, center, clip, pad, padStart, stripAnsi, strWidth, wrap } from "./ansi.js";
 
 /** 反色高亮的一行（整行铺满，像 TUI 的标题栏）。 */
 export function titleBar(width, left, right = "") {
@@ -19,7 +19,9 @@ export function box(lines, width, { padding = 1 } = {}) {
   const out = [];
   out.push(`${C.grey}┌${"─".repeat(inner)}┐${C.reset}`);
   for (const line of lines) {
-    const body = padding ? `${" ".repeat(padding)}${pad(line, contentWidth)}${" ".repeat(padding)}` : pad(line, inner);
+    const body = padding
+      ? `${" ".repeat(padding)}${pad(line, contentWidth)}${" ".repeat(padding)}`
+      : pad(line, inner);
     out.push(`${C.grey}│${C.reset}${body}${C.grey}│${C.reset}`);
   }
   out.push(`${C.grey}└${"─".repeat(inner)}┘${C.reset}`);
@@ -81,4 +83,4 @@ function centerStr(line, width) {
   return " ".repeat(left) + line;
 }
 
-export { C, pad, padStart, stripAnsi, strWidth, clip, wrap, center };
+export { C, center, clip, pad, padStart, stripAnsi, strWidth, wrap };

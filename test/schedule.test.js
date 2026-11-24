@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { osrSchedule, buildHistogram, noteInitialEase, previewGrades, describeInterval, addDays, daysBetween } from "../src/schedule.js";
+import {
+  addDays,
+  buildHistogram,
+  daysBetween,
+  describeInterval,
+  noteInitialEase,
+  osrSchedule,
+  previewGrades,
+} from "../src/schedule.js";
 import { DEFAULTS } from "../src/vault.js";
 
 const S = DEFAULTS;
@@ -8,7 +16,10 @@ const empty = () => new Map();
 
 test("四档：有历史卡（interval 6, ease 230）", () => {
   // 直方图非空，走 loadBalance 取整
-  const hist = new Map([[6, 1], [3, 1]]);
+  const hist = new Map([
+    [6, 1],
+    [3, 1],
+  ]);
   const table = {
     again: { interval: 0, ease: 210 },
     hard: { interval: 3, ease: 210 },
@@ -86,5 +97,11 @@ test("buildHistogram 的 key 是距今天数（逾期为负）", () => {
     { srLine: null },
   ];
   const h = buildHistogram(cards, "2026-10-29");
-  assert.deepEqual([...h.entries()].sort((a, b) => a[0] - b[0]), [[0, 1], [4, 1]]);
+  assert.deepEqual(
+    [...h.entries()].sort((a, b) => a[0] - b[0]),
+    [
+      [0, 1],
+      [4, 1],
+    ],
+  );
 });

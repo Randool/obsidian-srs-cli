@@ -3,7 +3,7 @@
  * 返回 { action: 'home' | 'quit' }
  */
 import { C, center, humanDuration } from "./ansi.js";
-import { titleBar, box } from "./chrome.js";
+import { box, titleBar } from "./chrome.js";
 import { RESPONSE_LABEL } from "../schedule.js";
 import { t } from "../i18n.js";
 
@@ -25,7 +25,7 @@ export async function runSummary({ screen, summary, canGoHome }) {
     content.push(
       `  ${t("summary.answered", { n: `${C.bold}${s.answered}${C.reset}` })}` +
         (s.skipped ? `  ${C.dim}${t("summary.skipped", { n: s.skipped })}${C.reset}` : "") +
-        `  ${C.dim}${t("summary.elapsed", { d: humanDuration(s.elapsed) })}${C.reset}`
+        `  ${C.dim}${t("summary.elapsed", { d: humanDuration(s.elapsed) })}${C.reset}`,
     );
     content.push("");
     const cells = Object.keys(s.counts).map((k) => {
@@ -38,7 +38,7 @@ export async function runSummary({ screen, summary, canGoHome }) {
       content.push(`  ${C.dim}${t("summary.left", { n: s.left })}${C.reset}`);
     } else if (s.nextDue) {
       content.push(
-        `  ${C.dim}${t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })}${C.reset}`
+        `  ${C.dim}${t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })}${C.reset}`,
       );
     } else {
       content.push(`  ${C.dim}${t("summary.noUpcoming")}${C.reset}`);
@@ -50,7 +50,7 @@ export async function runSummary({ screen, summary, canGoHome }) {
     if (canGoHome) {
       lines.push(
         ` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.backHome")}${C.reset}   ` +
-          `${C.bold}q${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`
+          `${C.bold}q${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`,
       );
     } else {
       lines.push(` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`);

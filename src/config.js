@@ -47,7 +47,9 @@ export function pickVault({ flag = null, env = process.env, file = configPath() 
   const cfg = readConfig(file);
   if (flag) return { value: flag, source: "flag", file: cfg.file };
   if (env.SRS_VAULT) return { value: env.SRS_VAULT, source: "env", file: cfg.file };
-  if (cfg.config.vault) return { value: cfg.config.vault, source: "config", file: cfg.file, error: cfg.error };
+  if (cfg.config.vault) {
+    return { value: cfg.config.vault, source: "config", file: cfg.file, error: cfg.error };
+  }
   return { value: null, source: null, file: cfg.file, error: cfg.error };
 }
 
