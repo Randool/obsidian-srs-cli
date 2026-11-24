@@ -17,15 +17,19 @@ The plugin ships no CLI, so this is a port of its v1.15.4 implementation
 
 ## Install
 
+Not on npm yet — install from a local clone:
+
 ```bash
-npm i -g obsidian-srs-cli     # installs the command `obsrs`
+git clone https://github.com/Randool/obsidian-srs-cli.git
+cd obsidian-srs-cli
+npm install -g .              # installs the command `obsrs`
 obsrs --version
 ```
 
 - The **command** is `obsrs`, the **package** is `obsidian-srs-cli` — same split as
-  `ripgrep` → `rg`. `npx obsidian-srs-cli` works too, and `srs` is left free for other tools
-  (`alias srs=obsrs` if you want the short name).
-- From source: `node /path/to/obsidian-srs-cli/srs.js`.
+  `ripgrep` → `rg`. `srs` is left free for other tools (`alias srs=obsrs` if you want it).
+- For development, `npm link` from the repo symlinks the command instead of copying it.
+- Without installing: `node /path/to/obsidian-srs-cli/srs.js`.
 
 ## Configure your vault (once)
 
@@ -174,21 +178,7 @@ This tool **edits your notes**, so it behaves like this:
 English and Chinese, chosen from `$LANG` (`en*` → English, anything else → Chinese) or forced with
 `SRS_LANG=en` / `SRS_LANG=zh`. Card content is never translated — that's your own writing.
 
-## Structure
-
-```
-srs.js              entry point: args, commands, home → review → summary flow
-src/config.js       vault resolution (--vault > $SRS_VAULT > config file)
-src/vault.js        vault validation + plugin settings
-src/parser.js       card parsing (line-oriented, quirks included)
-src/schedule.js     SM-2-OSR + grade previews + date math
-src/store.js        write-back, backups/cleanup, undo, line resync
-src/session.js      queue building + session state (terminal-agnostic)
-src/i18n.js         English / Chinese strings
-src/plain.js        non-TTY line mode
-src/ui/*.js         alternate screen, drawing primitives, home/review/edit/summary screens
-test/*.test.js      49 node:test cases
-```
+## Development
 
 ```bash
 npm test          # 49 node:test cases

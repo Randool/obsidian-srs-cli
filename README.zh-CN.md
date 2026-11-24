@@ -14,13 +14,17 @@ Node.js（≥18）、零依赖；核心逻辑与界面分层，带 `node:test` �
 
 ## 安装
 
+目前还没发布到 npm，先在克隆下来的仓库目录里安装：
+
 ```bash
-npm i -g obsidian-srs-cli    # 装出来的命令叫 obsrs
+git clone https://github.com/Randool/obsidian-srs-cli.git
+cd obsidian-srs-cli
+npm install -g .             # 装出来的命令叫 obsrs
 obsrs --version
 ```
 
-- 包名 `obsidian-srs-cli`（npm 上搜得到），命令名 `obsrs`（少打字）——同 `ripgrep` → `rg` 的分法。
-- `npx obsidian-srs-cli` 也能直接跑；想要三字母可以 `alias srs=obsrs`（`srs` 太通用，不去占）。
+- 命令名 `obsrs`，包名 `obsidian-srs-cli`——同 `ripgrep` → `rg` 的分法。
+- 开发时可以用 `npm link`，它只建软链，不会复制一份。
 - 不装也行：`node /path/to/obsidian-srs-cli/srs.js`。
 
 ## 配置库路径（第一次用先做这一步）
@@ -151,25 +155,11 @@ obsrs --version                # 版本号
 界面有中英文两套，默认跟随 `$LANG`（`en*` → 英文，其余中文），也可以用 `SRS_LANG=en` / `SRS_LANG=zh` 强制。
 卡片内容不会翻译——那是你自己的笔记。
 
-## 结构
-
-```
-srs.js              入口：参数、命令分发、主页↔复习↔小结的流程
-src/config.js       库路径（--vault > $SRS_VAULT > 配置文件）
-src/vault.js        库校验 + 插件设置读取
-src/parser.js       卡片解析（逐行，含插件的历史行为）
-src/schedule.js     SM-2-OSR + 四档预览 + 日期
-src/store.js        写回、备份/清理、撤销、行号重排
-src/session.js      队列与一次复习的状态机（不认终端）
-src/i18n.js         中英文案
-src/plain.js        非 TTY 的逐行模式
-src/ui/*.js         备择屏、绘制零件、主页/复习/编辑/小结界面
-test/*.test.js      node:test：解析、排程、队列/随机、写回/撤销、配置、i18n、打包约束
-```
+## 开发
 
 ```bash
 npm test        # 49 个用例
-npm run format    # deno fmt，110 列（需装 deno，不引入 npm 依赖）
+npm run format  # deno fmt，110 列（需装 deno，不引入 npm 依赖）
 ```
 
 ## 不支持
