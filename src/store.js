@@ -7,9 +7,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseFile, SR_RE } from "./parser.js";
+import { cleanText, parseFile } from "./parser.js";
 
-export const SR_ANY_RE = /<!--SR:[^>]*-->/g;
+const SR_ANY_RE = /<!--SR:[^>]*-->/g;
 
 /** 备份目录：$SRS_BACKUP_DIR > $XDG_STATE_HOME/srs/backups > ~/.local/state/srs/backups */
 export function backupRoot() {
@@ -22,6 +22,12 @@ export function backupRoot() {
 
 export function countSchedules(text) {
   return (text.match(SR_ANY_RE) || []).length;
+}
+
+function assertScheduleCount(after, expect, file) {
+  if (after !== expect) {
+    throw new Error(`排程注释条数不符（${after} != ${expect}），已放弃写入 ${file}`);
+  }
 }
 
 /** 读笔记：行数组统一成无 \r，同时记下原换行风格与权限，写回时还原。 */
@@ -41,6 +47,11 @@ function writeNote(file, lines, eol, mode) {
     /* 某些文件系统不支持改权限，忽略 */
   }
   fs.renameSync(tmp, file);
+}
+
+function persist(file, lines, eol, mode, wantBackup) {
+  if (wantBackup && process.env.SRS_NO_BACKUP !== "1") backup(file);
+  writeNote(file, lines, eol, mode);
 }
 
 function pruneBackups(root, keep) {
@@ -69,12 +80,11 @@ function backup(file) {
   const dst = path.join(dir, path.basename(file));
   if (!fs.existsSync(dst)) fs.copyFileSync(file, dst);
   pruneBackups(root, Number(process.env.SRS_BACKUP_KEEP || 20));
-  return dst;
 }
 
 /**
  * 把一次作答写回笔记。
- * @returns {{file, srLine, oldLine, inserted, eol, mode, backup?}} 供 undo() 用
+ * @returns {{file, srLine, oldLine, inserted, eol, mode}} 供 undo() 用
  */
 export function applySchedule(card, due, interval, ease, { dryRun = false, backup: wantBackup = true } = {}) {
   const { text, eol, mode, lines } = readNote(card.file);
@@ -101,20 +111,63 @@ export function applySchedule(card, due, interval, ease, { dryRun = false, backu
   }
 
   const after = countSchedules(lines.join(eol));
-  if (after !== expect) {
-    throw new Error(`排程注释条数不符（${after} != ${expect}），已放弃写入 ${card.file}`);
-  }
+  assertScheduleCount(after, expect, card.file);
 
   if (!dryRun) {
-    const skipBackup = !wantBackup || process.env.SRS_NO_BACKUP === "1";
-    if (!skipBackup) snapshot.backup = backup(card.file);
-    writeNote(card.file, lines, eol, mode);
+    persist(card.file, lines, eol, mode, wantBackup);
   }
 
   card.due = due;
   card.interval = interval;
   card.ease = ease;
   return snapshot;
+}
+
+/**
+ * 就地改写一张卡的题面/答案，保留卡片块里的 SR 注释、换行风格与权限。
+ * 只动卡片正文那几行；行号变化交给 resync() 重新对齐。
+ */
+export function replaceCardText(
+  card,
+  frontRaw,
+  backRaw,
+  settings,
+  { kind = card.kind, backup: wantBackup = true } = {},
+) {
+  const { text, eol, mode, lines } = readNote(card.file);
+  const before = countSchedules(text);
+  const tag = card.ownTag ? `${card.ownTag} ` : "";
+  const srInside = card.srLine !== null && card.srLine >= card.firstLine && card.srLine <= card.endLine;
+  const contentEnd = srInside ? card.srLine - 1 : card.endLine;
+  if (contentEnd < card.firstLine - 1) throw new Error(`卡片范围不合法：${card.file}`);
+
+  let block;
+  if (kind === "multi") {
+    const sepLine = lines
+      .slice(card.firstLine, contentEnd + 1)
+      .find((line) => line.trim() === settings.multilineCardSeparator) ?? settings.multilineCardSeparator;
+    block = `${tag}${frontRaw}\n${sepLine}\n${backRaw}`.split("\n");
+  } else {
+    const sep = settings.singleLineCardSeparator;
+    const original = lines[card.firstLine] || "";
+    const at = original.indexOf(sep);
+    const leftGap = at >= 0 ? (original.slice(0, at).match(/[ \t]*$/) || [""])[0] : "";
+    const rightGap = at >= 0 ? (original.slice(at + sep.length).match(/^[ \t]*/) || [""])[0] : "";
+    block = [`${tag}${frontRaw}${leftGap}${sep}${rightGap}${backRaw}`];
+  }
+
+  lines.splice(card.firstLine, contentEnd - card.firstLine + 1, ...block);
+
+  const after = countSchedules(lines.join(eol));
+  assertScheduleCount(after, before, card.file);
+
+  persist(card.file, lines, eol, mode, wantBackup);
+
+  card.kind = kind;
+  card.frontRaw = frontRaw;
+  card.backRaw = backRaw;
+  card.front = cleanText(frontRaw);
+  card.back = cleanText(backRaw);
 }
 
 export function undo(snapshot, { dryRun = false } = {}) {
@@ -152,5 +205,3 @@ export function resync(file, cards, settings) {
     }
   }
 }
-
-export { SR_RE };

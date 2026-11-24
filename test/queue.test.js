@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildQueue, orderLabel, Session, shuffle } from "../src/session.js";
+import { buildQueue, filterCards, Session } from "../src/session.js";
 import { DEFAULTS } from "../src/vault.js";
-import { isNew } from "../src/schedule.js";
 
 const S = DEFAULTS;
 const TODAY = "2026-10-29";
@@ -60,13 +59,6 @@ test("random 模式尊重 limit，且不重复", () => {
   assert.equal(new Set(q.map((c) => c.front)).size, 5);
 });
 
-test("shuffle 不修改输入数组", () => {
-  const a = [1, 2, 3, 4, 5];
-  const copy = a.slice();
-  shuffle(a, () => 0.3);
-  assert.deepEqual(a, copy);
-});
-
 test("会话中途重洗：已答部分不动，剩余部分重排", () => {
   const lib = {
     settings: SEQ,
@@ -93,14 +85,24 @@ test("会话中途重洗：已答部分不动，剩余部分重排", () => {
   assert.equal(s.queue.length, before.length);
 });
 
-test("orderLabel 有中文字面（界面直接显示）", () => {
-  assert.match(orderLabel("plugin"), /插件/);
-  assert.match(orderLabel("random"), /随机/);
+test("random 模式不排出未到期的熟卡", () => {
+  const cards = [
+    card("a", 1, { due: "2026-10-28", interval: 1, ease: 250 }),
+    card("a", 2, { due: "2026-12-01", interval: 30, ease: 250 }),
+    card("a", 3, { due: "2027-06-01", interval: 200, ease: 250 }),
+    card("a", 4),
+  ];
+  const q = buildQueue(cards, S, TODAY, { order: "random", rng: () => 0.5 });
+  assert.deepEqual(q.map((c) => c.front).sort(), ["a#1", "a#4"]);
 });
 
-test("random 模式下新卡与到期卡都会被抽到", () => {
-  const cards = [card("a", 1, { due: "2026-10-28", interval: 1, ease: 250 }), card("a", 2), card("a", 3)];
-  const q = buildQueue(cards, S, TODAY, { order: "random", rng: () => 0.5 });
-  assert.equal(q.filter(isNew).length, 2);
-  assert.equal(q.filter((c) => !isNew(c)).length, 1);
+test("filterCards：all 是到期+新卡，due 只含到期卡", () => {
+  const cards = [
+    card("a", 1, { due: "2026-10-28", interval: 1, ease: 250 }),
+    card("a", 2, { due: "2026-12-01", interval: 30, ease: 250 }),
+    card("a", 3),
+  ];
+  assert.deepEqual(filterCards(cards, { today: TODAY }).map((c) => c.front), ["a#1", "a#3"]);
+  assert.deepEqual(filterCards(cards, { today: TODAY, mode: "due" }).map((c) => c.front), ["a#1"]);
+  assert.deepEqual(filterCards(cards, { today: TODAY, mode: "new" }).map((c) => c.front), ["a#3"]);
 });

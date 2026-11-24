@@ -4,6 +4,7 @@ import {
   addDays,
   buildHistogram,
   daysBetween,
+  daysLate,
   describeInterval,
   noteInitialEase,
   osrSchedule,
@@ -73,10 +74,26 @@ test("新卡初始 ease 继承本笔记已排程卡的平均值（log 加权）"
 test("previewGrades 不改动输入", () => {
   const card = { srLine: 3, interval: 6, ease: 230, due: "2026-10-28" };
   const before = JSON.stringify(card);
-  const p = previewGrades(card, S, new Map([[6, 1]]), 250);
+  const p = previewGrades(card, S, new Map([[6, 1]]), 250, "2026-10-28");
   assert.deepEqual(Object.keys(p).sort(), ["again", "easy", "good", "hard"]);
   assert.equal(p.good.interval, 14);
   assert.equal(JSON.stringify(card), before);
+});
+
+test("逾期天数参与间隔计算（插件 delayedBeforeReviewDays）", () => {
+  const card = { srLine: 3, interval: 6, ease: 230, due: "2026-10-18" };
+  const hist = new Map([[6, 1]]);
+  assert.equal(daysLate(card, "2026-10-18"), 0);
+  assert.equal(daysLate(card, "2026-10-28"), 10);
+  assert.equal(daysLate({ srLine: null }, "2026-10-28"), 0);
+
+  const onTime = previewGrades(card, S, hist, 250, "2026-10-18");
+  const late = previewGrades(card, S, hist, 250, "2026-10-28");
+  assert.equal(onTime.good.interval, 14);
+  // (6 + 10/2) * 230 / 100 = 25.3 → loadBalance 取整 25
+  assert.equal(late.good.interval, 25);
+  assert.ok(late.easy.interval > onTime.easy.interval);
+  assert.ok(late.hard.interval > onTime.hard.interval);
 });
 
 test("日期间隔与描述", () => {

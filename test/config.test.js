@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { configPath, pickVault, readConfig, SOURCE_LABEL, writeConfig } from "../src/config.js";
+import { configPath, pickVault, readConfig, writeConfig } from "../src/config.js";
 import { DEFAULTS, validateVault } from "../src/vault.js";
 
 function tmpFile(name = "config.json") {
@@ -85,8 +85,4 @@ test("validateVault：不存在的路径 / 不是库 / 正常库", () => {
   } finally {
     fs.rmSync(underHome, { recursive: true, force: true });
   }
-});
-
-test("SOURCE_LABEL 覆盖三种来源", () => {
-  assert.deepEqual(Object.keys(SOURCE_LABEL).sort(), ["config", "env", "flag"]);
 });

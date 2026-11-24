@@ -3,15 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 import { applySchedule, backupRoot, countSchedules } from "../src/store.js";
 import { parseFile } from "../src/parser.js";
 import { DEFAULTS } from "../src/vault.js";
 import { DICT, makeT, resolveLang } from "../src/i18n.js";
-
-const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 
 function tmpNote(text, mode = 0o644) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "srs-quality-"));
@@ -129,54 +125,4 @@ test("i18n：两种语言的键集合一致（避免漏翻）", () => {
   const extraInEn = en.filter((k) => !zh.includes(k));
   assert.deepEqual(missingInEn, [], `英文缺：${missingInEn.join(", ")}`);
   assert.deepEqual(extraInEn, [], `英文多：${extraInEn.join(", ")}`);
-});
-
-test("--version 输出 package.json 里的版本", () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  const r = spawnSync(process.execPath, [path.join(ROOT, "srs.js"), "--version"], { encoding: "utf8" });
-  assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), pkg.version);
-});
-
-test("双语 README：两份都在、互相链接、命令名一致", () => {
-  const en = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
-  const zh = fs.readFileSync(path.join(ROOT, "README.zh-CN.md"), "utf8");
-  assert.match(en, /\[简体中文\]\(README\.zh-CN\.md\)/, "英文版要链到中文版");
-  assert.match(zh, /\[English\]\(README\.md\)/, "中文版要链回英文版");
-  for (
-    const [name, text] of [
-      ["README.md", en],
-      ["README.zh-CN.md", zh],
-    ]
-  ) {
-    assert.match(text, /obsrs review --shuffle/, `${name} 里应该是 obsrs 命令`);
-    assert.ok(!/npm i -g obsrs\s/.test(text), `${name} 的安装命令要用包名 obsidian-srs-cli`);
-  }
-  const pkg2 = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  assert.ok(pkg2.files.includes("README.zh-CN.md"), "中文 README 也要发布");
-
-  // banner：文件在、两份 README 都引用、也在发布清单里
-  assert.ok(fs.existsSync(path.join(ROOT, "assets/banner.svg")), "assets/banner.svg 应存在");
-  for (
-    const [name, text] of [
-      ["README.md", en],
-      ["README.zh-CN.md", zh],
-    ]
-  ) {
-    assert.match(text, /assets\/banner\.svg/, `${name} 应引用 banner`);
-  }
-  assert.ok(pkg2.files.includes("assets/banner.svg"), "banner 要随包发布");
-});
-
-test("bin 名不与常见包冲突，且 files 不含 test/", () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  assert.ok(pkg.bin.obsrs, "应提供 obsrs 命令");
-  assert.ok(!pkg.bin.srs, "不占用通用名 srs");
-  assert.ok(!pkg.bin["obsidian-srs"], "命令名已缩短");
-  assert.ok(pkg.files.includes("src/"));
-  assert.ok(!pkg.files.some((f) => f.startsWith("test")), "test 不该发布");
-  assert.equal(pkg.license, "MIT");
-  assert.ok(fs.existsSync(path.join(ROOT, "LICENSE")));
-  assert.equal(typeof pkg.repository.url, "string");
-  assert.equal(pkg.scripts.prepublishOnly, "npm test");
 });

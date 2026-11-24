@@ -5,7 +5,6 @@
 const DICT = {
   zh: {
     "app.bin": "obsrs",
-    "app.tagline": "终端复习 Obsidian 闪卡",
 
     "common.today": "今天",
     "common.due": "到期",
@@ -14,7 +13,6 @@ const DICT = {
     "common.deck": "deck",
     "common.next": "下次",
     "common.all": "全部",
-    "common.none": "-",
     "common.newCard": "新卡",
     "common.interval": "间隔 {n} 天",
     "common.ease": "ease {n}",
@@ -61,6 +59,7 @@ const DICT = {
     "hint.skip": "跳过",
     "hint.reshuffle": "重洗",
     "hint.scroll": "滚动",
+    "hint.edit": "编辑",
     "hint.end": "结束",
     "hint.backHome": "回主页",
     "hint.exit": "退出",
@@ -73,6 +72,33 @@ const DICT = {
     "review.skipped": "已跳过（不写排程）",
     "review.reshuffled": "剩下的 {n} 张已打乱",
     "review.graded": "{label} · {ivl} 后（{due}）",
+
+    "edit.title": "编辑卡片",
+    "edit.front": "题面",
+    "edit.back": "答案",
+    "edit.single": "单行",
+    "edit.multi": "多行",
+    "edit.toggle": "单行/多行",
+    "edit.switch": "切换题面/答案",
+    "edit.save": "保存",
+    "edit.cancel": "取消",
+    "edit.move": "移动光标",
+    "edit.saved": "已保存修改",
+    "edit.noChange": "没有改动",
+    "edit.canceled": "已放弃修改",
+    "edit.discard": "再按 Esc 放弃",
+    "edit.empty": "题面和答案都不能为空",
+    "edit.singleLine": "单行卡的题面/答案不能换行",
+    "edit.toSingleBlocked": "题面/答案里还有换行，先删掉再改单行",
+    "edit.separator": "内容里不能出现分隔符「{sep}」（会被解析成别的卡）",
+    "edit.blankLine": "多行卡里不能有空行（会提前结束卡片）",
+    "edit.comment": "内容里不能有以 <!-- 开头的行（插件的 parser 会吞掉下一行）",
+    "edit.tag": "内容里不能写 #flashcards 标签（会改变所属 deck）",
+    "edit.dryRun": "--dry-run 不写盘，不能编辑",
+    "edit.noCard": "当前没有卡片",
+    "edit.saveFailed": "保存失败：{err}",
+    "edit.plainUnavailable": "编辑模式只在交互式界面可用",
+    "edit.lineInfo": "第 {row}/{n} 行",
 
     "summary.doneTitle": "这一轮复习完成",
     "summary.stopTitle": "先停在这儿",
@@ -99,6 +125,7 @@ const DICT = {
     "help.help": "显示本帮助",
     "help.quit": "退出 / 结束本轮",
     "help.reveal": "翻面看答案",
+    "help.editCard": "编辑这张卡的题面/答案",
     "help.scroll": "长答案上下滚",
     "help.gradeKeys": "翻面后打分",
     "help.again": "Again：没想起来，重来",
@@ -110,11 +137,10 @@ const DICT = {
     "help.reshuffle": "重洗还没看的部分",
 
     "plain.flip": "\n  Enter 看答案（q 退出）: ",
-    "plain.grade": "  打分 1-4 / a h g e（z 撤销，s 跳过，x 重洗，q 结束）: ",
+    "plain.grade": "  打分 1-4（z 撤销，s 跳过，x 重洗，q 结束）: ",
     "plain.done": "复习结束：作答 {n} 张{warn}。",
 
-    "msg.notConfigured":
-      "还没有配置 Obsidian 库路径。任选一种（推荐第一种，配一次以后都不用管）：\n" +
+    "msg.notConfigured": "还没有配置 Obsidian 库路径。任选一种（推荐第一种，配一次以后都不用管）：\n" +
       "  {cmd} config --vault <库目录>   # 写进 {file}\n" +
       "  export SRS_VAULT=<库目录>     # 只对当前 shell 生效\n" +
       "  {cmd} --vault <库目录>          # 只对这一次生效",
@@ -122,13 +148,15 @@ const DICT = {
     "msg.vaultSaved": "已记住库路径：{vault}",
     "msg.vaultMissing": "库目录不存在：{dir}\n  检查路径，或重新配置（{cmd} config --vault <库目录>）。",
     "msg.notDir": "这不是目录：{dir}",
-    "msg.noPlugin": "这个目录里没有 Spaced Repetition 插件的配置：{path}\n  确认选的是装过 obsidian-spaced-repetition 的那个库。",
+    "msg.noPlugin":
+      "这个目录里没有 Spaced Repetition 插件的配置：{path}\n  确认选的是装过 obsidian-spaced-repetition 的那个库。",
     "msg.dataStore": "插件把排程存在插件数据里（不是笔记里），本工具读不了。",
     "msg.configBroken": "配置解析失败，按未配置处理：{err}",
-    "msg.writeFailed": "写不进去：{err}",
-    "msg.noCards": "这个范围里没有卡片。\n检查 --vault 指对了库，以及笔记里有没有 #flashcards/<deck> 标签行。",
+    "msg.noCards":
+      "这个范围里没有卡片。\n检查 --vault 指对了库，以及笔记里有没有 #flashcards/<deck> 标签行。",
     "msg.nothingDue": "今天没有要复习的卡片 🎉\n下次有活：{date}（{n} 张）",
-    "msg.filtered": "按当前筛选没有匹配的卡：到这里有 {due} 张到期、{fresh} 张新卡。\n去掉 --new-only / --due-only 再试试。",
+    "msg.filtered":
+      "按当前筛选没有匹配的卡：到这里有 {due} 张到期、{fresh} 张新卡。\n去掉 --new-only / --due-only 再试试。",
     "msg.unknownDeck": "没有叫「{deck}」的 deck。\n这里是现有的：",
     "msg.hint.start": "运行 {cmd} 打开主页开始；或 {cmd} review -d <deck> 直接进。",
     "msg.written": "已写入 {file}",
@@ -144,7 +172,6 @@ const DICT = {
 
   en: {
     "app.bin": "obsrs",
-    "app.tagline": "review Obsidian flashcards in your terminal",
 
     "common.today": "Today",
     "common.due": "due",
@@ -153,7 +180,6 @@ const DICT = {
     "common.deck": "deck",
     "common.next": "next",
     "common.all": "All decks",
-    "common.none": "-",
     "common.newCard": "new card",
     "common.interval": "interval {n}d",
     "common.ease": "ease {n}",
@@ -200,6 +226,7 @@ const DICT = {
     "hint.skip": "skip",
     "hint.reshuffle": "shuffle",
     "hint.scroll": "scroll",
+    "hint.edit": "edit",
     "hint.end": "finish",
     "hint.backHome": "home",
     "hint.exit": "quit",
@@ -212,6 +239,34 @@ const DICT = {
     "review.skipped": "skipped (no schedule written)",
     "review.reshuffled": "reshuffled the remaining {n} cards",
     "review.graded": "{label} · in {ivl} ({due})",
+
+    "edit.title": "Edit card",
+    "edit.front": "front",
+    "edit.back": "back",
+    "edit.single": "single-line",
+    "edit.multi": "multi-line",
+    "edit.toggle": "single/multi",
+    "edit.switch": "front/back",
+    "edit.save": "save",
+    "edit.cancel": "cancel",
+    "edit.move": "move",
+    "edit.saved": "changes saved",
+    "edit.noChange": "no changes",
+    "edit.canceled": "changes discarded",
+    "edit.discard": "press Esc again to discard",
+    "edit.empty": "front and back cannot be empty",
+    "edit.singleLine": "a single-line card cannot have line breaks",
+    "edit.toSingleBlocked": "remove line breaks before switching to single-line",
+    "edit.separator": "the content cannot contain the separator “{sep}” (it would parse as another card)",
+    "edit.blankLine": "a multi-line card cannot contain blank lines (it would end the card early)",
+    "edit.comment":
+      "the content cannot contain lines starting with <!-- (the plugin parser swallows the next line)",
+    "edit.tag": "the content cannot contain a #flashcards tag (it would change the deck)",
+    "edit.dryRun": "--dry-run writes nothing, so editing is disabled",
+    "edit.noCard": "no current card",
+    "edit.saveFailed": "could not save: {err}",
+    "edit.plainUnavailable": "editing is only available in the interactive UI",
+    "edit.lineInfo": "line {row}/{n}",
 
     "summary.doneTitle": "Session complete",
     "summary.stopTitle": "Stopped early",
@@ -238,6 +293,7 @@ const DICT = {
     "help.help": "show this help",
     "help.quit": "quit / finish the session",
     "help.reveal": "reveal the answer",
+    "help.editCard": "edit this card's front/back",
     "help.scroll": "scroll long answers",
     "help.gradeKeys": "grade after revealing",
     "help.again": "Again: no recall, start over",
@@ -249,25 +305,27 @@ const DICT = {
     "help.reshuffle": "shuffle the cards you haven't seen",
 
     "plain.flip": "\n  Enter to reveal (q to quit): ",
-    "plain.grade": "  grade 1-4 / a h g e (z undo, s skip, x shuffle, q end): ",
+    "plain.grade": "  grade 1-4 (z undo, s skip, x shuffle, q end): ",
     "plain.done": "Session done: {n} answered{warn}.",
 
-    "msg.notConfigured":
-      "No vault configured yet. Pick one (the first is a one-time setup):\n" +
+    "msg.notConfigured": "No vault configured yet. Pick one (the first is a one-time setup):\n" +
       "  {cmd} config --vault <vault-dir>   # writes {file}\n" +
       "  export SRS_VAULT=<vault-dir>     # current shell only\n" +
       "  {cmd} --vault <vault-dir>          # this run only",
     "msg.askVault": "\n  Obsidian vault path (Enter to confirm, q to cancel): ",
     "msg.vaultSaved": "vault saved: {vault}",
-    "msg.vaultMissing": "vault directory not found: {dir}\n  check the path, or re-run {cmd} config --vault <dir>.",
+    "msg.vaultMissing":
+      "vault directory not found: {dir}\n  check the path, or re-run {cmd} config --vault <dir>.",
     "msg.notDir": "not a directory: {dir}",
-    "msg.noPlugin": "no Spaced Repetition plugin data here: {path}\n  pick the vault that has obsidian-spaced-repetition installed.",
+    "msg.noPlugin":
+      "no Spaced Repetition plugin data here: {path}\n  pick the vault that has obsidian-spaced-repetition installed.",
     "msg.dataStore": "the plugin stores schedules in its own data, not in notes — this tool can't read that.",
     "msg.configBroken": "config file is not valid JSON, ignoring it: {err}",
-    "msg.writeFailed": "could not write: {err}",
-    "msg.noCards": "no cards in this scope.\nCheck --vault points at the right vault, and that notes have a #flashcards/<deck> tag line.",
+    "msg.noCards":
+      "no cards in this scope.\nCheck --vault points at the right vault, and that notes have a #flashcards/<deck> tag line.",
     "msg.nothingDue": "nothing due today 🎉\nnext up: {date} ({n} cards)",
-    "msg.filtered": "nothing matches the current filter: {due} due, {fresh} new in this scope.\nTry without --new-only / --due-only.",
+    "msg.filtered":
+      "nothing matches the current filter: {due} due, {fresh} new in this scope.\nTry without --new-only / --due-only.",
     "msg.unknownDeck": "there is no deck named “{deck}”. Available decks:",
     "msg.hint.start": "Run {cmd} to open the home screen, or {cmd} review -d <deck> to jump straight in.",
     "msg.written": "wrote {file}",

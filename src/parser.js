@@ -5,12 +5,17 @@
 const TAG_RE = /#flashcards(?:\/[^\s#]*)?/;
 const SR_RE = /<!--SR:!(\d{4}-\d{2}-\d{2}),([\d.]+),(\d+)-->/;
 
-/** 卡片正文里混进来的 markdown / 工具元数据，在解析边界就洗干净。 */
-export function cleanText(s) {
+/** 去掉卡片正文里混进来的 SR 注释行。 */
+function withoutSchedules(s) {
   return String(s)
     .split("\n")
     .filter((l) => !l.trim().startsWith("<!--SR:"))
-    .join("\n")
+    .join("\n");
+}
+
+/** 卡片正文里混进来的 markdown / 工具元数据，在解析边界就洗干净。 */
+export function cleanText(s) {
+  return withoutSchedules(s)
     .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
     .replace(/\[\[([^\]]+)\]\]/g, "$1")
     .replace(/\*\*/g, "")
@@ -128,7 +133,10 @@ export function parseFile(file, text, settings) {
       const k = body.findIndex((x) => x.trim() === multi);
       if (k < 0) continue;
       frontRaw = body.slice(0, k).join("\n").trim();
-      backRaw = body.slice(k + 1).join("\n").trim();
+      backRaw = body
+        .slice(k + 1)
+        .join("\n")
+        .trim();
     } else {
       const sep = settings.singleLineCardSeparator;
       const idx = ct.indexOf(sep);
@@ -136,13 +144,17 @@ export function parseFile(file, text, settings) {
       frontRaw = ct.slice(0, idx).trim();
       backRaw = ct.slice(idx + sep.length).trim();
     }
+    frontRaw = withoutSchedules(frontRaw).trim();
+    backRaw = withoutSchedules(backRaw).trim();
 
     let deck = null;
     for (const [lineNo, d] of tags) if (lineNo < firstLine) deck = d;
+    let ownTag = null;
     const own = frontRaw.split("\n")[0].match(TAG_RE);
     if (own && own[0].startsWith("#flashcards")) {
-      deck = deckOf(own[0]);
-      frontRaw = frontRaw.replace(own[0], "").trim();
+      ownTag = own[0];
+      deck = deckOf(ownTag);
+      frontRaw = frontRaw.replace(ownTag, "").trim();
     }
     if (deck === null) continue;
 
@@ -153,6 +165,8 @@ export function parseFile(file, text, settings) {
     const card = {
       file,
       deck,
+      kind: kind === "multi" ? "multi" : "single",
+      ownTag,
       front,
       back,
       frontRaw,
@@ -179,7 +193,7 @@ export function parseFile(file, text, settings) {
   if (swallowed) {
     warnings.push(
       `${file.split("/").pop()}：${swallowed} 处 <!-- --> 注释后面紧跟内容行，` +
-        "插件的 parser 会把那一行吞掉（在注释后补一个空行即可修）"
+        "插件的 parser 会把那一行吞掉（在注释后补一个空行即可修）",
     );
   }
   for (const s of skipped) {
@@ -189,4 +203,4 @@ export function parseFile(file, text, settings) {
   return { cards, warnings, skipped };
 }
 
-export { TAG_RE, SR_RE };
+export { TAG_RE };

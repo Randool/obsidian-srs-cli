@@ -2,7 +2,8 @@
  * 界面零件：顶栏、方框、键位提示、帮助浮层。
  * 每个函数都只吃字符串、吐字符串，便于肉眼和测试同时检查。
  */
-import { C, center, clip, pad, padStart, stripAnsi, strWidth, wrap } from "./ansi.js";
+import { C, clip, pad, strWidth } from "./ansi.js";
+import { t } from "../i18n.js";
 
 /** 反色高亮的一行（整行铺满，像 TUI 的标题栏）。 */
 export function titleBar(width, left, right = "") {
@@ -44,35 +45,29 @@ export function hints(pairs, width) {
   return ` ${clip(text, limit - strWidth(more))}${more}`;
 }
 
-/** 一行「到期 / 新卡 / 共」的紧凑统计。 */
-export function statLine({ due, fresh, total }, width) {
-  const parts = [
-    due ? `${C.yellow}${due} 到期${C.reset}` : null,
-    fresh ? `${C.cyan}${fresh} 新卡${C.reset}` : null,
-    `${C.dim}共 ${total}${C.reset}`,
-  ].filter(Boolean);
-  return ` ${clip(parts.join(` ${C.dim}·${C.reset} `), width - 2)}`;
-}
-
 /**
  * 居中帮助浮层。返回整屏内容（替换主界面），任意键返回。
  */
 export function helpScreen(width, rows, { title = "键盘操作", sections }) {
   const innerW = Math.min(width - 4, 72);
-  const lines = [];
-  lines.push("");
+  const body = [""];
   for (const [head, items] of sections) {
-    lines.push(`  ${C.bold}${head}${C.reset}`);
+    body.push(`  ${C.bold}${head}${C.reset}`);
     for (const [keys, desc] of items) {
-      lines.push(`    ${pad(keys, 16)}${C.dim}${desc}${C.reset}`);
+      body.push(`    ${pad(keys, 16)}${C.dim}${desc}${C.reset}`);
     }
-    lines.push("");
+    body.push("");
   }
-  const framed = box(lines, innerW + 2, { padding: 0 });
+  // 给标题、边框和底部提示留位置，避免小终端上提示被 slice 掉
+  const maxBody = Math.max(1, rows - 5);
+  if (body.length > maxBody) {
+    body.length = maxBody;
+    body[maxBody - 1] = `  ${C.dim}…${C.reset}`;
+  }
+  const framed = box(body, innerW + 2, { padding: 0 });
   const out = [titleBar(width, title), ""];
   for (const l of framed) out.push(centerStr(l, width));
-  out.push("");
-  out.push(` ${C.dim}任意键返回${C.reset}`);
+  out.push(` ${C.dim}${t("common.anyKey")}${C.reset}`);
   while (out.length < rows) out.push("");
   return out.slice(0, rows);
 }
@@ -82,5 +77,3 @@ function centerStr(line, width) {
   const left = Math.max(0, Math.floor((width - w) / 2));
   return " ".repeat(left) + line;
 }
-
-export { C, center, clip, pad, padStart, stripAnsi, strWidth, wrap };

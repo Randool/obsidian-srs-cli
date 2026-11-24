@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { t } from "./i18n.js";
 
-export const PLUGIN_DIR = ".obsidian/plugins/obsidian-spaced-repetition";
+const PLUGIN_DIR = ".obsidian/plugins/obsidian-spaced-repetition";
 
 export const DEFAULTS = {
   algorithm: "SM-2-OSR",
@@ -28,7 +28,7 @@ export const DEFAULTS = {
 };
 
 /** 判定一个目录是不是装过本插件的 Obsidian 库。 */
-export function looksLikeVault(dir) {
+function looksLikeVault(dir) {
   return fs.existsSync(path.join(dir, PLUGIN_DIR, "data.json"));
 }
 

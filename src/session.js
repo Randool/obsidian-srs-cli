@@ -2,20 +2,21 @@
  * 库级视图 + 一次复习会话的状态机（不认终端，TUI/逐行模式共用）。
  */
 import { cardFiles, loadSettings } from "./vault.js";
-import { parseFile } from "./parser.js";
+import { parseFile, TAG_RE } from "./parser.js";
 import {
-  describeInterval as describeIntervalShort,
+  addDays,
   buildHistogram,
+  daysLate,
+  describeInterval as describeIntervalShort,
   isDue,
   isNew,
   noteInitialEase,
   osrSchedule,
   previewGrades,
-  addDays,
+  RESPONSE_LABEL,
   todayStr,
-  RESPONSES,
 } from "./schedule.js";
-import { applySchedule, resync, undo } from "./store.js";
+import { applySchedule, replaceCardText, resync, undo } from "./store.js";
 import { t } from "./i18n.js";
 
 /** 读全库卡片 + 解析告警。 */
@@ -50,12 +51,12 @@ export function deckStats(cards, today) {
     .sort((a, b) => (a.deck < b.deck ? -1 : a.deck > b.deck ? 1 : 0));
 }
 
-export function filterCards(cards, { deck = null, mode = "all" } = {}) {
+export function filterCards(cards, { deck = null, mode = "all", today = todayStr() } = {}) {
   let out = cards;
   if (deck) out = out.filter((c) => c.deck === deck || c.deck.startsWith(`${deck}/`));
-  if (mode === "new") out = out.filter(isNew);
-  if (mode === "due") out = out.filter((c) => !isNew(c));
-  return out;
+  if (mode === "new") return out.filter(isNew);
+  if (mode === "due") return out.filter((c) => !isNew(c) && isDue(c, today));
+  return out.filter((c) => isNew(c) || isDue(c, today));
 }
 
 /** Fisher-Yates；rng 可注入，方便测试。 */
@@ -78,9 +79,15 @@ export function orderLabel(order) {
  *  order = 'plugin'：照插件的 flashcardDeckOrder / flashcardCardOrder（逐 deck 一组一组出）
  *  order = 'random'：把所有选中的卡整体打散（跨 deck 混排），想换脑子时用
  */
-export function buildQueue(cards, settings, today, { limit = null, order = "plugin", rng = Math.random } = {}) {
+export function buildQueue(
+  cards,
+  settings,
+  today,
+  { limit = null, order = "plugin", rng = Math.random } = {},
+) {
   if (order === "random") {
-    const q = shuffle(cards, rng);
+    // 随机只是换顺序，不能把「还没到期」的熟卡也放进本轮
+    const q = shuffle(cards.filter((c) => isNew(c) || isDue(c, today)), rng);
     return limit ? q.slice(0, limit) : q;
   }
   const byDeck = new Map();
@@ -108,11 +115,65 @@ export function buildQueue(cards, settings, today, { limit = null, order = "plug
   return limit ? queue.slice(0, limit) : queue;
 }
 
+/** 编辑内容的语法校验；返回空串表示可以写入。 */
+export function validateCardEdit(card, front, back, settings, kind = card.kind) {
+  if (!front.trim() || !back.trim()) return t("edit.empty");
+  if (front.includes("<!--SR:") || back.includes("<!--SR:")) return t("edit.comment");
+  if (TAG_RE.test(front)) return t("edit.tag");
+
+  const inlineSep = [settings.singleLineCardSeparator, settings.singleLineReversedCardSeparator].filter(
+    Boolean,
+  );
+  const multiSep = settings.multilineCardSeparator;
+  const multiRev = settings.multilineReversedCardSeparator;
+
+  const lineError = (line, isFront) => {
+    const trim = line.trim();
+    if (trim === "") return t("edit.blankLine");
+    // 插件 parser 会把以 <!-- 开头的行连同下一行一起吞掉
+    if (line.startsWith("<!--")) return t("edit.comment");
+    const hit = inlineSep.find((sep) => line.includes(sep));
+    if (hit) return t("edit.separator", { sep: hit });
+    if (multiRev && trim === multiRev) return t("edit.separator", { sep: multiRev });
+    if (isFront && multiSep && trim === multiSep) return t("edit.separator", { sep: multiSep });
+    return "";
+  };
+
+  if (kind === "single") {
+    if (front.includes("\n") || back.includes("\n")) return t("edit.singleLine");
+    const err = lineError(front, true);
+    if (err) return err;
+    const rev = settings.singleLineReversedCardSeparator;
+    if (rev && back.includes(rev)) return t("edit.separator", { sep: rev });
+  } else {
+    for (const line of front.split("\n")) {
+      const err = lineError(line, true);
+      if (err) return err;
+    }
+    for (const line of back.split("\n")) {
+      const err = lineError(line, false);
+      if (err) return err;
+    }
+  }
+
+  if (back.split("\n").some((line) => line.trim().startsWith("#flashcards"))) return t("edit.tag");
+  return "";
+}
+
 /**
  * 一次复习会话。所有状态变化都过这里，界面层只负责显示和读键。
  */
 export class Session {
-  constructor({ library, today = todayStr(), deck = null, mode = "all", limit = null, dryRun = false, order = "plugin", backup = true }) {
+  constructor({
+    library,
+    today = todayStr(),
+    deck = null,
+    mode = "all",
+    limit = null,
+    dryRun = false,
+    order = "plugin",
+    backup = true,
+  }) {
     this.settings = library.settings;
     this.allCards = library.cards;
     this.warnings = library.warnings;
@@ -123,7 +184,7 @@ export class Session {
     this.backup = backup;
 
     this.order = order;
-    const pool = filterCards(this.allCards, { deck, mode });
+    const pool = filterCards(this.allCards, { deck, mode, today });
     this.queue = buildQueue(pool, this.settings, today, { limit, order });
     this.hist = buildHistogram(this.allCards, today);
 
@@ -163,7 +224,21 @@ export class Session {
     const c = this.card;
     if (!c) return null;
     const noteEase = this.noteEase.get(c.file) ?? this.settings.baseEase;
-    return previewGrades(c, this.settings, this.hist, noteEase);
+    return previewGrades(c, this.settings, this.hist, noteEase, this.today);
+  }
+
+  /** 保存编辑后的题面/答案，可同时切换单行/多行格式。 */
+  editCard(frontRaw, backRaw, kind = null) {
+    const card = this.card;
+    if (!card) return { ok: false, message: t("edit.noCard") };
+    if (this.dryRun) return { ok: false, message: t("edit.dryRun") };
+    const target = kind || card.kind;
+    const err = validateCardEdit(card, frontRaw, backRaw, this.settings, target);
+    if (err) return { ok: false, message: err };
+    replaceCardText(card, frontRaw, backRaw, this.settings, { kind: target, backup: this.backup });
+    resync(card.file, this.queue, this.settings);
+    this.lastMessage = t("edit.saved");
+    return { ok: true, message: this.lastMessage };
   }
 
   /** 评分。返回给用户看的一句话。 */
@@ -173,7 +248,14 @@ export class Session {
     const noteEase = this.noteEase.get(card.file) ?? this.settings.baseEase;
     const startInterval = isNew(card) ? 1 : card.interval;
     const startEase = isNew(card) ? noteEase : card.ease;
-    const { interval, ease } = osrSchedule(response, startInterval, startEase, 0, this.settings, this.hist);
+    const { interval, ease } = osrSchedule(
+      response,
+      startInterval,
+      startEase,
+      daysLate(card, this.today),
+      this.settings,
+      this.hist,
+    );
     const due = addDays(this.today, Math.round(interval));
     const snap = applySchedule(card, due, interval, ease, { dryRun: this.dryRun, backup: this.backup });
     const bucket = Math.round(interval);
@@ -183,7 +265,7 @@ export class Session {
     this.counts[response]++;
     if (!this.dryRun) resync(card.file, this.queue, this.settings);
 
-    const label = { again: "Again", hard: "Hard", good: "Good", easy: "Easy" }[response];
+    const label = RESPONSE_LABEL[response];
     const msg = t("review.graded", { label, ivl: describeIntervalShort(interval), due });
     this.lastMessage = msg;
 
@@ -246,5 +328,3 @@ export class Session {
     };
   }
 }
-
-export { RESPONSES, isDue, isNew };

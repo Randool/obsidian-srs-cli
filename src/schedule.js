@@ -6,6 +6,9 @@ import { t } from "./i18n.js";
 
 export const RESPONSES = ["again", "hard", "good", "easy"];
 
+/** 评分键：只用数字，TUI 与逐行模式共用。 */
+export const GRADE_KEYS = Object.fromEntries(RESPONSES.map((r, i) => [String(i + 1), r]));
+
 export const RESPONSE_LABEL = { again: "Again", hard: "Hard", good: "Good", easy: "Easy" };
 
 export const isNew = (card) => card.srLine === null;
@@ -49,9 +52,9 @@ export function osrSchedule(response, interval, ease, delayedDays, settings, his
 
   if (response === "easy") {
     e += 20;
-    ivl = ((ivl + delayedDays) * e / 100) * settings.easyBonus;
+    ivl = (((ivl + delayedDays) * e) / 100) * settings.easyBonus;
   } else if (response === "good") {
-    ivl = (ivl + delayedDays / 2) * e / 100;
+    ivl = ((ivl + delayedDays / 2) * e) / 100;
   } else if (response === "hard") {
     e = Math.max(130, e - 20);
     ivl = Math.max(1, (ivl + delayedDays / 4) * settings.lapsesIntervalChange);
@@ -84,13 +87,20 @@ export function noteInitialEase(cardsInNote, settings) {
   return Math.round(avg * contrib + settings.baseEase * (1 - contrib));
 }
 
+/** 逾期天数：插件 `delayedBeforeReviewDays = max(0, floor((today - due) / 天))`。 */
+export function daysLate(card, today) {
+  if (isNew(card) || !card.due) return 0;
+  return Math.max(0, daysBetween(card.due, today));
+}
+
 /** 四档预览：不改数据，只算「如果现在按 X 会怎样」。 */
-export function previewGrades(card, settings, hist, noteEase) {
+export function previewGrades(card, settings, hist, noteEase, today = todayStr()) {
   const startInterval = isNew(card) ? 1 : card.interval;
   const startEase = isNew(card) ? noteEase : card.ease;
+  const delayed = daysLate(card, today);
   const out = {};
   for (const r of RESPONSES) {
-    out[r] = osrSchedule(r, startInterval, startEase, 0, settings, hist);
+    out[r] = osrSchedule(r, startInterval, startEase, delayed, settings, hist);
   }
   return out;
 }
@@ -111,10 +121,12 @@ function trim(n) {
 
 // ---------------------------------------------------------------- 日期（按本地日历日算）
 export function todayStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${
+    String(d.getDate()).padStart(2, "0")
+  }`;
 }
 
-export function dayNumber(dateStr) {
+function dayNumber(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return Date.UTC(y, m - 1, d);
 }
@@ -125,5 +137,7 @@ export function daysBetween(fromStr, toStr) {
 
 export function addDays(dateStr, days) {
   const d = new Date(dayNumber(dateStr) + days * 86400000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${
+    String(d.getUTCDate()).padStart(2, "0")
+  }`;
 }

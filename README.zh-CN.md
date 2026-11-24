@@ -65,11 +65,12 @@ obsrs --vault /path/to/your/vault        # 只对这一次生效
 └──────────────────────────────────────────────────────────────────────┘
  biology-srs · 到期 2026-05-10 · 间隔 6 天 · ease 230
  1 Again 马上 · 2 Hard 3 天 · 3 Good 14 天 · 4 Easy 20 天
- 1-4 打分  z 撤销  s 跳过  x 重洗  ↑↓ 滚动  ? 帮助  q 结束
+ 1-4 打分  e 编辑  z 撤销  s 跳过  x 重洗  ↑↓ 滚动  ? 帮助  q 结束
 ```
 
 **每档都写着按了会排到多久之后**，不用凭感觉猜。翻面只翻面（按 1-4 不会把题偷答掉）；
 答完自动到下一张，长答案按 `↑↓` 翻；`x` 把还没看到的部分重新打乱。
+按 `e` 就地编辑这张卡的题面/答案：`Tab` 切字段，`Ctrl-T` 在单行/多行格式间切换（单行卡里按 `Enter` 也会自动转多行），`Ctrl-S` 保存，`Esc` 取消（有改动时按两次）。
 
 ## 小结
 
@@ -109,7 +110,8 @@ obsrs --version                # 版本号
 | | `m` | 切换出题方式：按插件设置（逐 deck 出）↔ 随机混排（跨 deck 打散） |
 | | `r` | 重新读库（外部改过笔记） |
 | 复习 | `Space` / `Enter` | 翻面 |
-| | `1-4` 或 `a h g e` | Again / Hard / Good / Easy |
+| | `1-4` | Again / Hard / Good / Easy |
+| | `e` | 编辑当前卡的题面/答案（`Tab` 切换，`Ctrl-T` 单行/多行，`Ctrl-S` 保存，`Esc` 取消） |
 | | `z` | 撤销上一张（回到那张卡） |
 | | `s` | 跳过（不写排程） |
 | | `x` | 重洗剩下的卡（已答的不动） |
@@ -129,7 +131,7 @@ obsrs --version                # 版本号
 ## 与插件的一致性
 
 - 设置全部读插件自己的 `data.json`：分隔符、`baseEase`、`easyBonus`、`lapsesIntervalChange`、`loadBalance`、`maximumInterval`、卡片/卡组排序。
-- 排程照 `osrSchedule()`：Good = 间隔×ease；Easy 额外 +20 ease 且乘 easyBonus；Hard 间隔乘 lapsesIntervalChange 且 ease−20；Again 归零并挪到本次末尾重出。开 loadBalance 时按全库到期直方图抖动间隔（照抄 `findLeastUsedIntervalOverRange`），**即使直方图为空也取整**（所以新卡 Good 是 3 天不是 2.5）。
+- 排程照 `osrSchedule()`：Good = 间隔×ease；Easy 额外 +20 ease 且乘 easyBonus；Hard 间隔乘 lapsesIntervalChange 且 ease−20；Again 归零并挪到本次末尾重出。逾期天数按插件的 `delayedBeforeReviewDays` 参与计算，晚复习会把下次间隔拉长。开 loadBalance 时按全库到期直方图抖动间隔（照抄 `findLeastUsedIntervalOverRange`），**即使直方图为空也取整**（所以新卡 Good 是 3 天不是 2.5）。
 - 新卡的初始 ease 用「笔记加载时」已排程卡的平均值（log 加权），与插件同口径。
 - 卡集与插件 deck tree 逐 deck 对齐过（开 Obsidian 读插件内部的 deck tree 与 `status --json` 对照）。
 
@@ -141,6 +143,7 @@ obsrs --version                # 版本号
 - 备份只保留最近 20 份（`SRS_BACKUP_KEEP` 可调）；`--no-backup` 或 `SRS_NO_BACKUP=1` 可关掉。
 - 复习前最好让 Obsidian 把笔记存盘 / 关掉那篇笔记：编辑器里的缓冲区不会随磁盘改动同步，
   下次保存可能把工具的写入覆盖回去。
+- 复习中按 `e` 编辑走同一套备份/原子写入；只改卡片正文，`<!--SR:...-->` 注释原样保留。
 - 退出码：`0` 正常，`2` 参数或配置问题（库路径、deck 名、dataStore 不支持），`1` 未预期异常。
 
 ## 语言
@@ -160,12 +163,13 @@ src/store.js        写回、备份/清理、撤销、行号重排
 src/session.js      队列与一次复习的状态机（不认终端）
 src/i18n.js         中英文案
 src/plain.js        非 TTY 的逐行模式
-src/ui/*.js         备择屏、绘制零件、主页/复习/小结三个界面
+src/ui/*.js         备择屏、绘制零件、主页/复习/编辑/小结界面
 test/*.test.js      node:test：解析、排程、队列/随机、写回/撤销、配置、i18n、打包约束
 ```
 
 ```bash
-npm test        # 45 个用例
+npm test        # 50 个用例
+npm run format    # deno fmt，110 列（需装 deno，不引入 npm 依赖）
 ```
 
 ## 不支持

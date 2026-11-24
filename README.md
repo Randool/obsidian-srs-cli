@@ -71,12 +71,14 @@ Decks with work to do float to the top. `Enter` starts (due + new), `n` new only
 └──────────────────────────────────────────────────────────────────────┘
  biology-srs · due 2026-05-10 · interval 6d · ease 230
  1 Again now · 2 Hard 3d · 3 Good 14d · 4 Easy 20d
- 1-4 grade  z undo  s skip  x shuffle  ↑↓ scroll  ? help  q finish
+ 1-4 grade  e edit  z undo  s skip  x shuffle  ↑↓ scroll  ? help  q finish
 ```
 
 Every grade tells you **what interval pressing it would schedule**, so you never guess.
 Revealing is a separate keystroke from grading — a stray `3` cannot answer for you.
 The card box shrinks to its content, long answers scroll, and `x` reshuffles what you haven't seen yet.
+Press `e` to edit the current card in place: `Tab` switches front/back, `Ctrl-T` toggles single-line/multi-line
+(Enter in a single-line card converts it automatically), `Ctrl-S` saves, and `Esc` cancels (press twice if there are changes).
 
 ## Summary
 
@@ -116,7 +118,8 @@ obsrs --version
 | | `m` | switch order: plugin settings ↔ shuffle across decks |
 | | `r` | reload the vault (after editing notes elsewhere) |
 | Review | `Space` / `Enter` | reveal |
-| | `1-4` or `a h g e` | Again / Hard / Good / Easy |
+| | `1-4` | Again / Hard / Good / Easy |
+| | `e` | edit this card's front/back (`Tab` switch, `Ctrl-T` single/multi, `Ctrl-S` save, `Esc` cancel) |
 | | `z` | undo the last card |
 | | `s` | skip this card (no schedule written) |
 | | `x` | reshuffle the cards you haven't seen |
@@ -142,10 +145,11 @@ so the same state machine works in scripts.
   `lapsesIntervalChange`, `loadBalance`, `maximumInterval`, card and deck ordering.
 - Scheduling follows `osrSchedule()`: Good = interval × ease; Easy adds 20 ease and multiplies by
   easyBonus; Hard multiplies the interval by `lapsesIntervalChange` and drops ease by 20; Again
-  resets to zero and requeues the card at the end of the session. With `loadBalance` on, the
-  interval is fuzzed against the vault-wide due-date histogram (ported
-  `findLeastUsedIntervalOverRange`) — including the detail that it rounds **even when the histogram
-  is empty** (so a new card's Good is 3 days, not 2.5).
+  resets to zero and requeues the card at the end of the session. Overdue days participate in the
+  calculation (`delayedBeforeReviewDays`), so reviewing late stretches the next interval like the
+  plugin does. With `loadBalance` on, the interval is fuzzed against the vault-wide due-date histogram
+  (ported `findLeastUsedIntervalOverRange`) — including the detail that it rounds **even when the
+  histogram is empty** (so a new card's Good is 3 days, not 2.5).
 - A new card's starting ease is the average ease of that note's scheduled cards, snapshotted when
   the note loads — same as the plugin.
 - The card set has been checked deck-by-deck against the plugin's own deck tree (`status --json`).
@@ -162,6 +166,8 @@ This tool **edits your notes**, so it behaves like this:
 - exit codes: `0` ok, `2` bad argument/configuration, `1` unexpected error;
 - best practice: let Obsidian save / close that note first — the editor buffer does not follow
   external writes, and its next save can overwrite them.
+- pressing `e` during review uses the same atomic write + backup path; only the card body changes,
+  and the `<!--SR:...-->` comment is left untouched.
 
 ## Language
 
@@ -180,12 +186,12 @@ src/store.js        write-back, backups/cleanup, undo, line resync
 src/session.js      queue building + session state (terminal-agnostic)
 src/i18n.js         English / Chinese strings
 src/plain.js        non-TTY line mode
-src/ui/*.js         alternate screen, drawing primitives, three screens
-test/*.test.js      45 node:test cases
+src/ui/*.js         alternate screen, drawing primitives, home/review/edit/summary screens
+test/*.test.js      50 node:test cases
 ```
 
 ```bash
-npm test          # 52 node:test cases
+npm test          # 50 node:test cases
 npm run format    # deno fmt (brew install deno), 110 columns
 ```
 

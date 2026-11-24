@@ -2,17 +2,11 @@
  * 复习界面：一张卡一屏，翻面与作答分两拍，四档按钮实时显示「按了会排到多久之后」。
  * 返回 { ended: 'finished' | 'quit' }
  */
-import { C, pad, clip, wrap, progressBar } from "./ansi.js";
-import { titleBar, box, hints, helpScreen } from "./chrome.js";
-import { describeInterval, RESPONSE_LABEL, RESPONSES, isNew } from "../schedule.js";
+import { C, clip, progressBar, wrap } from "./ansi.js";
+import { box, helpScreen, hints, titleBar } from "./chrome.js";
+import { describeInterval, GRADE_KEYS, isNew, RESPONSE_LABEL, RESPONSES } from "../schedule.js";
 import { t } from "../i18n.js";
-
-const KEY_TO_RESPONSE = {
-  "1": "again", a: "again",
-  "2": "hard", h: "hard",
-  "3": "good", g: "good",
-  "4": "easy", e: "easy",
-};
+import { editCard } from "./edit.js";
 
 export async function runReview({ screen, session, deckLabel }) {
   let revealed = false;
@@ -29,7 +23,9 @@ export async function runReview({ screen, session, deckLabel }) {
       const text = `${n} ${label} ${ivl}`;
       return revealedNow ? `${color}${C.bold}${text}${C.reset}` : `${C.dim}${text}${C.reset}`;
     });
-    return ` ${cells.join(`${C.dim} · ${C.reset}`)}${revealedNow ? "" : `   ${C.dim}${t("common.revealFirst")}${C.reset}`}`;
+    return ` ${cells.join(`${C.dim} · ${C.reset}`)}${
+      revealedNow ? "" : `   ${C.dim}${t("common.revealFirst")}${C.reset}`
+    }`;
   };
 
   const draw = () => {
@@ -46,17 +42,18 @@ export async function runReview({ screen, session, deckLabel }) {
               t("help.card"),
               [
                 ["Space / Enter", t("help.reveal")],
+                ["e", t("help.editCard")],
                 ["↑ ↓ / j k", t("help.scroll")],
-                ["1-4 / a h g e", t("help.gradeKeys")],
+                ["1-4", t("help.gradeKeys")],
               ],
             ],
             [
               t("help.grade"),
               [
-                ["1 / a", t("help.again")],
-                ["2 / h", t("help.hard")],
-                ["3 / g", t("help.good")],
-                ["4 / e", t("help.easy")],
+                ["1", t("help.again")],
+                ["2", t("help.hard")],
+                ["3", t("help.good")],
+                ["4", t("help.easy")],
               ],
             ],
             [
@@ -70,7 +67,7 @@ export async function runReview({ screen, session, deckLabel }) {
               ],
             ],
           ],
-        })
+        }),
       );
       return;
     }
@@ -81,10 +78,12 @@ export async function runReview({ screen, session, deckLabel }) {
     lines.push(
       titleBar(
         W,
-        `${t("app.bin")} · ${deckLabel || card?.deck || "-"} · ${Math.min(session.index + 1, session.total)}/${session.total}` +
+        `${t("app.bin")} · ${deckLabel || card?.deck || "-"} · ${
+          Math.min(session.index + 1, session.total)
+        }/${session.total}` +
           (session.order === "random" ? ` ${C.yellow}${t("common.random")}${C.reset}${C.bgHi}${C.bold}` : ""),
-        `${progressBar(ratio, barW)} ${t("common.answered", { n: session.answered })}`
-      )
+        `${progressBar(ratio, barW)} ${t("common.answered", { n: session.answered })}`,
+      ),
     );
     lines.push("");
 
@@ -93,7 +92,11 @@ export async function runReview({ screen, session, deckLabel }) {
     if (card) {
       body.push(...wrap(card.front, contentW));
       if (revealed) {
-        body.push(`${C.dim}${"─".repeat(Math.max(6, Math.min(contentW, Math.floor(contentW * 0.35))))} ${t("common.answer")}${C.reset}`);
+        body.push(
+          `${C.dim}${"─".repeat(Math.max(6, Math.min(contentW, Math.floor(contentW * 0.35))))} ${
+            t("common.answer")
+          }${C.reset}`,
+        );
         body.push(...wrap(card.back, contentW));
       }
     }
@@ -113,48 +116,38 @@ export async function runReview({ screen, session, deckLabel }) {
 
     const meta = card
       ? `${C.dim}${card.file.split("/").pop().replace(/\.md$/, "")} · ${
-          isNew(card)
-            ? t("common.newCard")
-            : `${t("common.dueAt", { date: card.due })} · ${t("common.interval", { n: card.interval })} · ${t("common.ease", { n: card.ease })}`
-        }${C.reset}`
+        isNew(card)
+          ? t("common.newCard")
+          : `${t("common.dueAt", { date: card.due })} · ${t("common.interval", { n: card.interval })} · ${
+            t("common.ease", { n: card.ease })
+          }`
+      }${C.reset}`
       : "";
-    lines.push(
-      ` ${flash ? `${C.green}${clip(flash, W - 2)}${C.reset}` : clip(meta, W - 2)}`
-    );
+    lines.push(` ${flash ? `${C.green}${clip(flash, W - 2)}${C.reset}` : clip(meta, W - 2)}`);
     lines.push(` ${clip(gradeLine(session.preview(), revealed), W - 2)}`);
     const narrow = W < 60;
-    const wideKeys = revealed
+    const keys = revealed
       ? [
-          ["1-4", t("hint.grade")],
-          ["z", t("hint.undo")],
-          ["s", t("hint.skip")],
-          ["x", t("hint.reshuffle")],
-          ["↑↓", t("hint.scroll")],
-          ["?", t("hint.help")],
-          ["q", t("hint.end")],
-        ]
+        ["1-4", t("hint.grade")],
+        ["e", t("hint.edit")],
+        ["z", t("hint.undo")],
+        ["s", t("hint.skip")],
+        ["x", t("hint.reshuffle")],
+        ["↑↓", t("hint.scroll")],
+        ["?", t("hint.help")],
+        ["q", t("hint.end")],
+      ]
       : [
-          ["Space", t("hint.reveal")],
-          ["z", t("hint.undo")],
-          ["s", t("hint.skip")],
-          ["x", t("hint.reshuffle")],
-          ["?", t("hint.help")],
-          ["q", t("hint.end")],
-        ];
-    const narrowKeys = revealed
-      ? [
-          ["1-4", t("hint.grade")],
-          ["z", t("hint.undo")],
-          ["?", t("hint.help")],
-          ["q", t("hint.end")],
-        ]
-      : [
-          ["Space", t("hint.reveal")],
-          ["z", t("hint.undo")],
-          ["?", t("hint.help")],
-          ["q", t("hint.end")],
-        ];
-    lines.push(hints(narrow ? narrowKeys : wideKeys, W));
+        ["Space", t("hint.reveal")],
+        ["e", t("hint.edit")],
+        ["z", t("hint.undo")],
+        ["s", t("hint.skip")],
+        ["x", t("hint.reshuffle")],
+        ["?", t("hint.help")],
+        ["q", t("hint.end")],
+      ];
+    const narrowKeys = keys.filter(([k]) => !["s", "x", "↑↓"].includes(k));
+    lines.push(hints(narrow ? narrowKeys : keys, W));
     screen.draw(lines.slice(0, R));
   };
 
@@ -200,6 +193,18 @@ export async function runReview({ screen, session, deckLabel }) {
           draw();
           continue;
         }
+        if (k === "e") {
+          if (session.dryRun) {
+            flash = t("edit.dryRun");
+            draw();
+            continue;
+          }
+          const message = await editCard({ screen, session });
+          flash = message;
+          scroll = 0;
+          draw();
+          continue;
+        }
 
         if (!revealed) {
           if (["space", "enter", "right"].includes(k)) {
@@ -211,7 +216,7 @@ export async function runReview({ screen, session, deckLabel }) {
           } else if (k === "up" || k === "k") {
             scroll = Math.max(0, scroll - 1);
             draw();
-          } else if (KEY_TO_RESPONSE[k]) {
+          } else if (GRADE_KEYS[k]) {
             // 还没翻面就按了评分键：先翻面，别把人偷答掉
             revealed = true;
             draw();
@@ -219,7 +224,7 @@ export async function runReview({ screen, session, deckLabel }) {
           continue;
         }
 
-        const response = KEY_TO_RESPONSE[k];
+        const response = GRADE_KEYS[k];
         if (response) {
           flash = session.grade(response);
           break;

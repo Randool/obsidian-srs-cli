@@ -12,17 +12,24 @@
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { validateVault, loadSettings } from "./src/vault.js";
-import { t, resolveLang } from "./src/i18n.js";
-import { pickVault, writeConfig, readConfig, configPath, notConfiguredMessage, SOURCE_LABEL } from "./src/config.js";
-import { loadLibrary, deckStats, Session } from "./src/session.js";
+import { loadSettings, validateVault } from "./src/vault.js";
+import { resolveLang, t } from "./src/i18n.js";
+import {
+  configPath,
+  notConfiguredMessage,
+  pickVault,
+  readConfig,
+  SOURCE_LABEL,
+  writeConfig,
+} from "./src/config.js";
+import { deckStats, loadLibrary, Session } from "./src/session.js";
 import { todayStr } from "./src/schedule.js";
 import { Screen } from "./src/ui/screen.js";
 import { runHome } from "./src/ui/home.js";
 import { runReview } from "./src/ui/review.js";
 import { runSummary } from "./src/ui/summary.js";
 import { runPlainReview } from "./src/plain.js";
-import { C, pad, padStart, clip, strWidth } from "./src/ui/ansi.js";
+import { C, clip, pad, padStart, strWidth } from "./src/ui/ansi.js";
 
 /** npm 包安装出来的命令名（包名见 package.json）。 */
 const CMD = "obsrs";
@@ -54,9 +61,10 @@ obsrs — 终端复习 Obsidian Spaced Repetition 闪卡
   -h, --help        显示本帮助
 
 复习界面按键
-  Space/Enter 翻面       1-4 或 a/h/g/e 打分（Again/Hard/Good/Easy）
-  z 撤销上一张          s 跳过这张           x 重洗剩下的卡
+  Space/Enter 翻面       1-4 打分（Again/Hard/Good/Easy）
+  e 编辑这张卡          z 撤销上一张           s 跳过这张           x 重洗剩下的卡
   ↑↓ 滚动长答案          ? 帮助               q 结束并看小结
+  编辑里：Tab 切题面/答案，Ctrl-T 单行/多行，Ctrl-S 保存，Esc 取消
 
 分档含义
   1 Again 没想起来，重来         2 Hard 想起来了但很吃力
@@ -93,9 +101,10 @@ Options
   -h, --help          show this help
 
 Keys
-  Space/Enter reveal      1-4 or a/h/g/e grade (Again/Hard/Good/Easy)
-  z undo                  s skip                x reshuffle the rest
-  ↑↓ scroll               ? help                q finish and show the summary
+  Space/Enter reveal      1-4 grade (Again/Hard/Good/Easy)
+  e edit card             z undo                 s skip                 x reshuffle the rest
+  ↑↓ scroll               ? help                 q finish and show the summary
+  In the editor: Tab switches front/back, Ctrl-T single/multi, Ctrl-S saves, Esc cancels
 
 Grades
   1 Again  no recall, start over          2 Hard  recalled with effort
@@ -163,7 +172,9 @@ function printWarnings(warnings) {
 }
 
 function statusLines({ library, today, deck }) {
-  const cards = deck ? library.cards.filter((c) => c.deck === deck || c.deck.startsWith(`${deck}/`)) : library.cards;
+  const cards = deck
+    ? library.cards.filter((c) => c.deck === deck || c.deck.startsWith(`${deck}/`))
+    : library.cards;
   return { cards, stats: deckStats(cards, today) };
 }
 
@@ -176,7 +187,9 @@ function printStatus({ library, today, deck, json, vault }) {
     for (const s of stats) decks[s.deck] = { due: s.due, new: s.new, total: s.total, next: s.next };
     const due = stats.reduce((a, s) => a + s.due, 0);
     const fresh = stats.reduce((a, s) => a + s.new, 0);
-    console.log(JSON.stringify({ today, vault, totals: { due, new: fresh, total: cards.length }, decks }, null, 2));
+    console.log(
+      JSON.stringify({ today, vault, totals: { due, new: fresh, total: cards.length }, decks }, null, 2),
+    );
     return 0;
   }
 
@@ -185,15 +198,19 @@ function printStatus({ library, today, deck, json, vault }) {
   const nameW = Math.max(...stats.map((s) => strWidth(s.deck)), 4);
   console.log(`\n${C.dim}${t("common.today")} ${today} · ${vault}${C.reset}`);
   console.log(
-    `${C.yellow}${due} ${t("common.due")}${C.reset}${C.dim} · ${C.reset}${C.cyan}${fresh} ${t("common.new")}${C.reset}${C.dim} · ${t("common.total")} ${cards.length}${C.reset}\n`
+    `${C.yellow}${due} ${t("common.due")}${C.reset}${C.dim} · ${C.reset}${C.cyan}${fresh} ${
+      t("common.new")
+    }${C.reset}${C.dim} · ${t("common.total")} ${cards.length}${C.reset}\n`,
   );
   console.log(
-    `${C.bold}${pad(t("common.deck"), nameW)}   ${t("common.due")}   ${t("common.new")}   ${t("common.total")}   ${t("common.next")}${C.reset}`
+    `${C.bold}${pad(t("common.deck"), nameW)}   ${t("common.due")}   ${t("common.new")}   ${
+      t("common.total")
+    }   ${t("common.next")}${C.reset}`,
   );
   for (const s of stats) {
     console.log(
       `${pad(s.deck, nameW)}   ${s.due ? C.yellow : C.dim}${padStart(String(s.due), 4)}${C.reset}   ` +
-        `${padStart(String(s.new), 4)}  ${padStart(String(s.total), 5)}   ${C.dim}${s.next || "-"}${C.reset}`
+        `${padStart(String(s.new), 4)}  ${padStart(String(s.total), 5)}   ${C.dim}${s.next || "-"}${C.reset}`,
     );
   }
   console.log(`\n${C.dim}${t("msg.hint.start", { cmd: CMD })}${C.reset}`);
@@ -203,7 +220,11 @@ function printStatus({ library, today, deck, json, vault }) {
 function printList({ library, today, deck }) {
   const { cards } = statusLines({ library, today, deck });
   for (const c of cards) {
-    const st = c.srLine === null ? t("common.newCard") : c.due <= today ? t("common.dueAt", { date: c.due }) : c.due;
+    const st = c.srLine === null
+      ? t("common.newCard")
+      : c.due <= today
+      ? t("common.dueAt", { date: c.due })
+      : c.due;
     console.log(`${pad(c.deck, 22)} ${pad(st, 13)} ${clip(c.front.replace(/\n/g, " "), 70)}`);
   }
   console.log(`\n${t("common.total")} ${cards.length}`);
@@ -229,7 +250,9 @@ function runConfig(args) {
     const cfg = loadSettings(vault);
     console.log(t("msg.written", { file }));
     console.log(t("msg.configSaved", { vault }));
-    if (cfg.notes.length) for (const n of cfg.notes) process.stderr.write(`${C.yellow}!${C.reset} ${n}\n`);
+    if (cfg.notes.length) {
+      for (const n of cfg.notes) process.stderr.write(`${C.yellow}!${C.reset} ${n}\n`);
+    }
     console.log(`\n${t("msg.nowJust", { cmd: CMD })}`);
     return 0;
   }
@@ -262,7 +285,10 @@ function emptyState({ library, deck, mode }) {
   const { stats } = statusLines({ library, today: todayStr(), deck });
   const due = stats.reduce((a, s) => a + s.due, 0);
   const fresh = stats.reduce((a, s) => a + s.new, 0);
-  const nexts = stats.filter((s) => s.next).map((s) => s.next).sort();
+  const nexts = stats
+    .filter((s) => s.next)
+    .map((s) => s.next)
+    .sort();
   if (due + fresh === 0) {
     if (nexts.length) {
       const n = nexts.filter((d) => d === nexts[0]).length;
@@ -279,7 +305,11 @@ function emptyState({ library, deck, mode }) {
 async function runInteractive({ args, vault, screen }) {
   let library = { ...loadLibrary(vault), vault };
   const vaultName = path.basename(vault);
-  const direct = Boolean(args.deck) || args.mode !== "all" || args.limit || args.cmd === "review" || args.order === "random";
+  const direct = Boolean(args.deck) ||
+    args.mode !== "all" ||
+    args.limit ||
+    args.cmd === "review" ||
+    args.order === "random";
 
   for (;;) {
     let start;
@@ -416,5 +446,5 @@ main(process.argv.slice(2)).then(
   (err) => {
     process.stderr.write(t("msg.err", { err: err && err.stack ? err.stack : err }) + "\n");
     process.exit(1);
-  }
+  },
 );

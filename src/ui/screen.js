@@ -9,6 +9,7 @@ export class Screen {
     this.out = stdout;
     this.in = stdin;
     this._pending = [];
+    this._buf = [];
     this._listener = null;
     this.closed = false;
     this.active = false;
@@ -27,16 +28,18 @@ export class Screen {
     this.out.write("\x1b[?1049h\x1b[?25l\x1b[2J");
     this.in.setRawMode?.(true);
     this.in.resume();
+    this._pending = [];
+    this._buf = [];
     readline.emitKeypressEvents(this.in);
     this._listener = (str, key) => {
-      const name = normalizeKey(str, key);
       const next = this._pending.shift();
-      if (next) next(name);
+      if (next) next({ str, key });
+      else this._buf.push({ str, key });
     };
     // 输入侧被关掉（管道跑完、终端断开）时不能干等一个永远不来的键
     this._onClose = () => {
       this.closed = true;
-      while (this._pending.length) this._pending.shift()("eof");
+      while (this._pending.length) this._pending.shift()(null);
     };
     this.in.on("keypress", this._listener);
     this.in.on("end", this._onClose);
@@ -59,6 +62,7 @@ export class Screen {
     this.out.write("\x1b[?25h\x1b[?1049l");
     this.active = false;
     this._pending = [];
+    this._buf = [];
   }
 
   /** 用换行分帧：先回家，逐行清尾，最后清屏下缘。 */
@@ -67,20 +71,35 @@ export class Screen {
     this.out.write(`\x1b[H${body}\x1b[J`);
   }
 
-  /** 等一个按键。 */
-  key() {
-    if (this.closed) return Promise.resolve("eof");
+  /** 等一个按键，保留 readline 的原始 key 对象（编辑模式要拿到大小写/粘贴文本）。 */
+  rawKey() {
+    if (this._buf.length) return Promise.resolve(this._buf.shift());
+    if (this.closed) return Promise.resolve(null);
     return new Promise((resolve) => this._pending.push(resolve));
   }
 
-  /** 读键但允许被外部打断（用于退出信号的统一处理）。 */
-  async keyOr(interrupt) {
-    return Promise.race([this.key(), interrupt]);
+  /** 等一个按键，返回归一化后的键名。 */
+  async key() {
+    const k = await this.rawKey();
+    return k === null ? "eof" : normalizeKey(k.str, k.key);
+  }
+
+  /** 把终端光标放到 1-based 的 row/col。 */
+  moveCursor(row, col) {
+    this.out.write(`\x1b[${Math.max(1, row)};${Math.max(1, col)}H`);
+  }
+
+  showCursor() {
+    this.out.write("\x1b[?25h");
+  }
+
+  hideCursor() {
+    this.out.write("\x1b[?25l");
   }
 }
 
 /** readline 的 key 对象 → 我们自己的键名。 */
-export function normalizeKey(str, key) {
+function normalizeKey(str, key) {
   if (key) {
     if (key.ctrl && key.name === "c") return "ctrl-c";
     if (key.name === "return" || key.name === "enter") return "enter";
@@ -89,13 +108,4 @@ export function normalizeKey(str, key) {
   const s = String(str || "");
   if (s === " ") return "space";
   return s.toLowerCase();
-}
-
-/** 备用：把 process.stdin 的一次 SIGINT 变成可等待的 Promise。 */
-export function interruptPromise(proc = process) {
-  return new Promise((resolve) => {
-    const fire = () => resolve("ctrl-c");
-    proc.once("SIGINT", fire);
-    proc.once("SIGTERM", fire);
-  });
 }

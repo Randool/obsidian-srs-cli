@@ -4,10 +4,10 @@
  */
 import readline from "node:readline";
 import { C } from "./ui/ansi.js";
-import { describeInterval, RESPONSE_LABEL, RESPONSES, isNew } from "./schedule.js";
+import { describeInterval, GRADE_KEYS, isNew, RESPONSE_LABEL, RESPONSES } from "./schedule.js";
 import { t } from "./i18n.js";
 
-const KEYS = { 1: "again", a: "again", 2: "hard", h: "hard", 3: "good", g: "good", 4: "easy", e: "easy" };
+const ACTIONS = new Set(["z", "s", "x", "q"]);
 
 export async function runPlainReview({ session, deckLabel, out = process.stdout, input = process.stdin }) {
   const rl = readline.createInterface({ input, crlfDelay: Infinity });
@@ -29,7 +29,9 @@ export async function runPlainReview({ session, deckLabel, out = process.stdout,
 
     const meta = isNew(card)
       ? t("common.newCard")
-      : `${t("common.dueAt", { date: card.due })} · ${t("common.interval", { n: card.interval })} · ${t("common.ease", { n: card.ease })}`;
+      : `${t("common.dueAt", { date: card.due })} · ${t("common.interval", { n: card.interval })} · ${
+        t("common.ease", { n: card.ease })
+      }`;
     out.write(`\n  ${paint(`${card.file.split("/").pop().replace(/\.md$/, "")} · ${meta}`, C.dim)}\n`);
 
     const flip = await ask(t("plain.flip"));
@@ -39,18 +41,25 @@ export async function runPlainReview({ session, deckLabel, out = process.stdout,
     const preview = session.preview();
     out.write(
       "\n  " +
-        RESPONSES.map((r, i) => `[${i + 1}] ${RESPONSE_LABEL[r]} ${describeInterval(preview[r].interval)}`).join("   ") +
-        "\n"
+        RESPONSES.map(
+          (r, i) => `[${i + 1}] ${RESPONSE_LABEL[r]} ${describeInterval(preview[r].interval)}`,
+        ).join("   ") +
+        "\n",
     );
 
     let key = "";
-    while (!KEYS[key] && !["z", "s", "x", "q"].includes(key)) {
+    for (;;) {
       const line = await ask(t("plain.grade"));
       if (line === null) {
         key = "q";
         break;
       }
       key = line.trim().slice(0, 1).toLowerCase();
+      if (key === "e") {
+        out.write(`  ${paint(t("edit.plainUnavailable"), C.yellow)}\n`);
+        continue;
+      }
+      if (GRADE_KEYS[key] || ACTIONS.has(key)) break;
     }
     if (key === "q") break;
     if (key === "z") {
@@ -66,16 +75,22 @@ export async function runPlainReview({ session, deckLabel, out = process.stdout,
       out.write(`  ${paint(session.reshuffle(), C.dim)}\n`);
       continue;
     }
-    out.write(`  ${paint(session.grade(KEYS[key]), C.green)}\n`);
+    out.write(`  ${paint(session.grade(GRADE_KEYS[key]), C.green)}\n`);
   }
 
   rl.close();
   const s = session.summary();
-  const warn = `${s.skipped ? ` ${t("summary.skipped", { n: s.skipped })}` : ""}${s.dryRun ? " (dry-run)" : ""}`;
+  const warn = `${s.skipped ? ` ${t("summary.skipped", { n: s.skipped })}` : ""}${
+    s.dryRun ? " (dry-run)" : ""
+  }`;
   out.write(`\n${t("plain.done", { n: s.answered, warn })}\n`);
   out.write(
-    `  ${Object.keys(s.counts).map((k) => `${RESPONSE_LABEL[k]} ${s.counts[k]}`).join("   ")}` +
-      (s.nextDue ? `\n  ${t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })}\n` : "\n")
+    `  ${
+      Object.keys(s.counts)
+        .map((k) => `${RESPONSE_LABEL[k]} ${s.counts[k]}`)
+        .join("   ")
+    }` +
+      (s.nextDue ? `\n  ${t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })}\n` : "\n"),
   );
   return 0;
 }
