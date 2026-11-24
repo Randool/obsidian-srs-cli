@@ -1,10 +1,10 @@
 {
   "name": "obsidian-srs-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Terminal TUI for obsidian-spaced-repetition flashcards: shares the plugin's inline schedule data, shows interval previews, supports undo and shuffled order.",
   "type": "module",
   "bin": {
-    "obsrs": "./srs.js"
+    "obsrs": "srs.js"
   },
   "files": [
     "srs.js",

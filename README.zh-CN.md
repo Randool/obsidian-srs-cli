@@ -14,12 +14,8 @@ Node.js（≥18）、零依赖；核心逻辑与界面分层，带 `node:test` �
 
 ## 安装
 
-目前还没发布到 npm，先在克隆下来的仓库目录里安装：
-
 ```bash
-git clone https://github.com/Randool/obsidian-srs-cli.git
-cd obsidian-srs-cli
-npm install -g .             # 装出来的命令叫 obsrs
+npm i -g obsidian-srs-cli  # installs the command `obsrs`
 obsrs --version
 ```
 

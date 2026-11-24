@@ -17,12 +17,8 @@ The plugin ships no CLI, so this is a port of its v1.15.4 implementation
 
 ## Install
 
-Not on npm yet — install from a local clone:
-
 ```bash
-git clone https://github.com/Randool/obsidian-srs-cli.git
-cd obsidian-srs-cli
-npm install -g .              # installs the command `obsrs`
+npm i -g obsidian-srs-cli  # installs the command `obsrs`
 obsrs --version
 ```
 
