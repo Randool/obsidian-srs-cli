@@ -2,7 +2,7 @@
  * 界面零件：顶栏、方框、键位提示、帮助浮层。
  * 每个函数都只吃字符串、吐字符串，便于肉眼和测试同时检查。
  */
-import { C, clip, pad, strWidth } from "./ansi.js";
+import { C, center, clip, pad, strWidth } from "./ansi.js";
 import { t } from "../i18n.js";
 
 /** 反色高亮的一行（整行铺满，像 TUI 的标题栏）。 */
@@ -66,14 +66,8 @@ export function helpScreen(width, rows, { title = "键盘操作", sections }) {
   }
   const framed = box(body, innerW + 2, { padding: 0 });
   const out = [titleBar(width, title), ""];
-  for (const l of framed) out.push(centerStr(l, width));
+  for (const l of framed) out.push(center(l, width));
   out.push(` ${C.dim}${t("common.anyKey")}${C.reset}`);
   while (out.length < rows) out.push("");
   return out.slice(0, rows);
-}
-
-function centerStr(line, width) {
-  const w = strWidth(line);
-  const left = Math.max(0, Math.floor((width - w) / 2));
-  return " ".repeat(left) + line;
 }

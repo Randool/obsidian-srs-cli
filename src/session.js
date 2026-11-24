@@ -52,11 +52,10 @@ export function deckStats(cards, today) {
 }
 
 export function filterCards(cards, { deck = null, mode = "all", today = todayStr() } = {}) {
-  let out = cards;
-  if (deck) out = out.filter((c) => c.deck === deck || c.deck.startsWith(`${deck}/`));
-  if (mode === "new") return out.filter(isNew);
-  if (mode === "due") return out.filter((c) => !isNew(c) && isDue(c, today));
-  return out.filter((c) => isNew(c) || isDue(c, today));
+  const pool = deck ? cards.filter((c) => c.deck === deck || c.deck.startsWith(`${deck}/`)) : cards;
+  if (mode === "new") return pool.filter(isNew);
+  if (mode === "due") return pool.filter((c) => !isNew(c) && isDue(c, today));
+  return pool.filter((c) => isNew(c) || isDue(c, today));
 }
 
 /** Fisher-Yates；rng 可注入，方便测试。 */
@@ -146,13 +145,11 @@ export function validateCardEdit(card, front, back, settings, kind = card.kind) 
     const rev = settings.singleLineReversedCardSeparator;
     if (rev && back.includes(rev)) return t("edit.separator", { sep: rev });
   } else {
-    for (const line of front.split("\n")) {
-      const err = lineError(line, true);
-      if (err) return err;
-    }
-    for (const line of back.split("\n")) {
-      const err = lineError(line, false);
-      if (err) return err;
+    for (const [text, isFront] of [[front, true], [back, false]]) {
+      for (const line of text.split("\n")) {
+        const err = lineError(line, isFront);
+        if (err) return err;
+      }
     }
   }
 
@@ -190,12 +187,11 @@ export class Session {
 
     // 插件在笔记加载时就固定了每篇笔记的 ease；这里同样取开头快照
     this.noteEase = new Map();
-    const byFile = new Map();
     for (const c of this.allCards) {
-      if (!byFile.has(c.file)) byFile.set(c.file, []);
-      byFile.get(c.file).push(c);
+      if (!this.noteEase.has(c.file)) this.noteEase.set(c.file, []);
+      this.noteEase.get(c.file).push(c);
     }
-    for (const [file, list] of byFile) this.noteEase.set(file, noteInitialEase(list, this.settings));
+    for (const [file, list] of this.noteEase) this.noteEase.set(file, noteInitialEase(list, this.settings));
 
     this.index = 0;
     this.answered = 0;

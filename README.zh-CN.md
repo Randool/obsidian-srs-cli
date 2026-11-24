@@ -168,7 +168,7 @@ test/*.test.js      node:test：解析、排程、队列/随机、写回/撤销�
 ```
 
 ```bash
-npm test        # 50 个用例
+npm test        # 49 个用例
 npm run format    # deno fmt，110 列（需装 deno，不引入 npm 依赖）
 ```
 

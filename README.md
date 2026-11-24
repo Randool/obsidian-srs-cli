@@ -187,11 +187,11 @@ src/session.js      queue building + session state (terminal-agnostic)
 src/i18n.js         English / Chinese strings
 src/plain.js        non-TTY line mode
 src/ui/*.js         alternate screen, drawing primitives, home/review/edit/summary screens
-test/*.test.js      50 node:test cases
+test/*.test.js      49 node:test cases
 ```
 
 ```bash
-npm test          # 50 node:test cases
+npm test          # 49 node:test cases
 npm run format    # deno fmt (brew install deno), 110 columns
 ```
 

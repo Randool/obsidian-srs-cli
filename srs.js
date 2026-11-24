@@ -178,23 +178,35 @@ function statusLines({ library, today, deck }) {
   return { cards, stats: deckStats(cards, today) };
 }
 
+const totals = (stats) =>
+  stats.reduce((a, s) => ({ due: a.due + s.due, new: a.new + s.new }), { due: 0, new: 0 });
+
+const sessionFor = (library, args, overrides = {}) =>
+  new Session({
+    library,
+    deck: args.deck,
+    mode: args.mode,
+    order: args.order,
+    limit: args.limit,
+    dryRun: args.dryRun,
+    backup: args.backup,
+    ...overrides,
+  });
+
 /** 文本概览：机器可读(--json)与给人看两种。 */
 function printStatus({ library, today, deck, json, vault }) {
   const { cards, stats } = statusLines({ library, today, deck });
+  const { due, new: fresh } = totals(stats);
 
   if (json) {
     const decks = {};
     for (const s of stats) decks[s.deck] = { due: s.due, new: s.new, total: s.total, next: s.next };
-    const due = stats.reduce((a, s) => a + s.due, 0);
-    const fresh = stats.reduce((a, s) => a + s.new, 0);
     console.log(
       JSON.stringify({ today, vault, totals: { due, new: fresh, total: cards.length }, decks }, null, 2),
     );
     return 0;
   }
 
-  const due = stats.reduce((a, s) => a + s.due, 0);
-  const fresh = stats.reduce((a, s) => a + s.new, 0);
   const nameW = Math.max(...stats.map((s) => strWidth(s.deck)), 4);
   console.log(`\n${C.dim}${t("common.today")} ${today} · ${vault}${C.reset}`);
   console.log(
@@ -283,8 +295,7 @@ function emptyState({ library, deck, mode }) {
     }
   }
   const { stats } = statusLines({ library, today: todayStr(), deck });
-  const due = stats.reduce((a, s) => a + s.due, 0);
-  const fresh = stats.reduce((a, s) => a + s.new, 0);
+  const { due, new: fresh } = totals(stats);
   const nexts = stats
     .filter((s) => s.next)
     .map((s) => s.next)
@@ -325,14 +336,10 @@ async function runInteractive({ args, vault, screen }) {
       start = { deck: r.deck, mode: r.mode, order: r.order };
     }
 
-    const session = new Session({
-      library,
+    const session = sessionFor(library, args, {
       deck: start.deck,
       mode: start.mode,
       order: start.order || args.order,
-      limit: args.limit,
-      dryRun: args.dryRun,
-      backup: args.backup,
     });
 
     if (!session.total) {
@@ -409,15 +416,7 @@ async function main(argv) {
 
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !args.plain;
   if (!interactive) {
-    const session = new Session({
-      library,
-      deck: args.deck,
-      mode: args.mode,
-      order: args.order,
-      limit: args.limit,
-      dryRun: args.dryRun,
-      backup: args.backup,
-    });
+    const session = sessionFor(library, args);
     if (!session.total) return emptyState({ library, deck: args.deck, mode: args.mode });
     return runPlainReview({ session, deckLabel: args.deck || t("common.all") });
   }

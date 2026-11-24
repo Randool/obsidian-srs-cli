@@ -9,52 +9,44 @@ import { t } from "../i18n.js";
 
 const COLORS = { again: C.red, hard: C.yellow, good: C.green, easy: C.cyan };
 
-export async function runSummary({ screen, summary, canGoHome }) {
+export async function runSummary({ screen, summary: s, canGoHome }) {
   const draw = () => {
     const W = screen.columns;
     const R = screen.rows;
-    const s = summary;
-    const lines = [];
-
-    const headline = s.left > 0 ? t("summary.stopTitle") : t("summary.doneTitle");
-    lines.push(titleBar(W, `${t("app.bin")} · ${headline}`, s.dryRun ? "dry-run" : ""));
-    lines.push("");
-
-    const innerW = Math.min(W - 4, 64);
-    const content = [];
-    content.push(
+    const lines = [
+      titleBar(
+        W,
+        `${t("app.bin")} · ${s.left > 0 ? t("summary.stopTitle") : t("summary.doneTitle")}`,
+        s.dryRun ? "dry-run" : "",
+      ),
+      "",
+    ];
+    const counts = Object.keys(s.counts)
+      .map((k) => `${COLORS[k]}${RESPONSE_LABEL[k]} ${s.counts[k]}${C.reset}`)
+      .join(`${C.dim}   ${C.reset}`);
+    const content = [
       `  ${t("summary.answered", { n: `${C.bold}${s.answered}${C.reset}` })}` +
-        (s.skipped ? `  ${C.dim}${t("summary.skipped", { n: s.skipped })}${C.reset}` : "") +
-        `  ${C.dim}${t("summary.elapsed", { d: humanDuration(s.elapsed) })}${C.reset}`,
+      (s.skipped ? `  ${C.dim}${t("summary.skipped", { n: s.skipped })}${C.reset}` : "") +
+      `  ${C.dim}${t("summary.elapsed", { d: humanDuration(s.elapsed) })}${C.reset}`,
+      "",
+      `  ${counts}`,
+      "",
+      `  ${C.dim}${
+        s.left > 0
+          ? t("summary.left", { n: s.left })
+          : s.nextDue
+          ? t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })
+          : t("summary.noUpcoming")
+      }${C.reset}`,
+    ];
+    lines.push(...box(content, Math.min(W - 4, 64) + 2, { padding: 0 }).map((l) => center(l, W)), "");
+    lines.push(
+      canGoHome
+        ? ` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.backHome")}${C.reset}   ${C.bold}q${C.reset} ${C.dim}${
+          t("hint.exit")
+        }${C.reset}`
+        : ` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`,
     );
-    content.push("");
-    const cells = Object.keys(s.counts).map((k) => {
-      const n = s.counts[k];
-      return `${COLORS[k]}${RESPONSE_LABEL[k]} ${n}${C.reset}`;
-    });
-    content.push(`  ${cells.join(`${C.dim}   ${C.reset}`)}`);
-    content.push("");
-    if (s.left > 0) {
-      content.push(`  ${C.dim}${t("summary.left", { n: s.left })}${C.reset}`);
-    } else if (s.nextDue) {
-      content.push(
-        `  ${C.dim}${t("summary.nextDue", { date: s.nextDue, n: s.nextDueCount || 0 })}${C.reset}`,
-      );
-    } else {
-      content.push(`  ${C.dim}${t("summary.noUpcoming")}${C.reset}`);
-    }
-
-    for (const l of box(content, innerW + 2, { padding: 0 })) lines.push(center(l, W));
-
-    lines.push("");
-    if (canGoHome) {
-      lines.push(
-        ` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.backHome")}${C.reset}   ` +
-          `${C.bold}q${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`,
-      );
-    } else {
-      lines.push(` ${C.bold}Enter${C.reset} ${C.dim}${t("hint.exit")}${C.reset}`);
-    }
     while (lines.length < R) lines.push("");
     screen.draw(lines.slice(0, R));
   };
