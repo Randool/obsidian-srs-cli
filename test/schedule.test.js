@@ -6,6 +6,8 @@ import {
   daysBetween,
   daysLate,
   describeInterval,
+  isNew,
+  isValidDateStr,
   noteInitialEase,
   osrSchedule,
   previewGrades,
@@ -60,13 +62,13 @@ test("关闭 loadBalance 时不做取整/抖动", () => {
 
 test("新卡初始 ease 继承本笔记已排程卡的平均值（log 加权）", () => {
   const cards = [
-    { srLine: 1, ease: 250, interval: 6 },
+    { srLine: 1, due: "2026-10-28", ease: 250, interval: 6 },
     { srLine: null, ease: null, interval: null },
   ];
   const e = noteInitialEase(cards, S);
   // contrib = log(1.5)/log(64) ≈ 0.097 → 250*0.097 + 250*0.903 = 250
   assert.equal(e, 250);
-  const low = noteInitialEase([{ srLine: 1, ease: 130, interval: 6 }], S);
+  const low = noteInitialEase([{ srLine: 1, due: "2026-10-28", ease: 130, interval: 6 }], S);
   assert.ok(low > 130 && low < 250, `应被 baseEase 拉高，实得 ${low}`);
   assert.equal(noteInitialEase([{ srLine: null }], S), 250);
 });
@@ -105,6 +107,40 @@ test("日期间隔与描述", () => {
   assert.equal(describeInterval(3), "3 天");
   assert.equal(describeInterval(60), "2 个月");
   assert.equal(describeInterval(800), "2.2 年");
+});
+
+test("isValidDateStr 只认真实存在的日历日", () => {
+  assert.equal(isValidDateStr("2026-10-28"), true);
+  assert.equal(isValidDateStr("2024-02-29"), true); // 闰年
+  assert.equal(isValidDateStr("2026-02-30"), false);
+  assert.equal(isValidDateStr("2023-02-29"), false);
+  assert.equal(isValidDateStr("2026-13-01"), false);
+  assert.equal(isValidDateStr("2026-12-109"), false);
+  assert.equal(isValidDateStr("2026-1-1"), false);
+  assert.equal(isValidDateStr(null), false);
+  assert.equal(isValidDateStr(undefined), false);
+  assert.equal(isValidDateStr(""), false);
+});
+
+test("daysBetween 入参非法时返回 NaN 而不是崩溃", () => {
+  assert.ok(Number.isNaN(daysBetween("2026-10-29", null)));
+  assert.ok(Number.isNaN(daysBetween(null, "2026-10-29")));
+  assert.ok(Number.isNaN(daysBetween("2026-02-30", "2026-10-29")));
+  assert.ok(Number.isNaN(daysBetween("2026-10-29", "not-a-date")));
+});
+
+test("格式损坏的排程卡按新卡处理，直方图不崩", () => {
+  // parser 解析失败时会留下 srLine、due=null；这里直接按这种形状构造
+  const malformed = { srLine: 3, due: null, interval: null, ease: null };
+  assert.equal(isNew(malformed), true);
+  assert.equal(isNew({ srLine: 1, due: "2026-02-30", interval: 1, ease: 250 }), true);
+  const cards = [
+    malformed,
+    { srLine: 1, due: "2026-10-29", interval: 1, ease: 250 },
+    { srLine: null },
+  ];
+  const h = buildHistogram(cards, "2026-10-29");
+  assert.deepEqual([...h.entries()], [[0, 1]]);
 });
 
 test("buildHistogram 的 key 是距今天数（逾期为负）", () => {
