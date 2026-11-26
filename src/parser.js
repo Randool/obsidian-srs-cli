@@ -2,6 +2,8 @@
  * 卡片解析 —— 照搬 obsidian-spaced-repetition v1.15.4 的 parser（src/parser.ts）。
  * 纯函数：输入笔记全文 + 设置，输出卡片数组，不碰文件系统。
  */
+import { isValidDateStr } from "./schedule.js";
+
 const TAG_RE = /#flashcards(?:\/[^\s#]*)?/;
 const SR_RE = /<!--SR:!(\d{4}-\d{2}-\d{2}),([\d.]+),(\d+)-->/;
 
@@ -112,6 +114,7 @@ export function parseFile(file, text, settings) {
 
   const cards = [];
   const skipped = [];
+  const badSrLines = [];
 
   for (const [kind, ct, firstLine, lastLine] of parsed) {
     let srLine = null;
@@ -180,16 +183,30 @@ export function parseFile(file, text, settings) {
     };
     if (srLine !== null) {
       const m = lines[srLine].match(SR_RE);
-      if (m) {
+      const interval = m ? Number(m[2]) : NaN;
+      const ease = m ? Number(m[3]) : NaN;
+      // 格式不对（正则不匹配、日期不存在、间隔/ease 不是有限数）时：
+      // due/interval/ease 保持 null，排程上按新卡处理；srLine 照常保留，
+      // 这样下次作答时 applySchedule 能原位覆盖这行坏注释，而不是另插一行
+      // 造成同一张卡出现两条排程注释。坏行只记行号进告警，不回显原文。
+      if (m && isValidDateStr(m[1]) && Number.isFinite(interval) && Number.isFinite(ease)) {
         card.due = m[1];
-        card.interval = Number(m[2]);
-        card.ease = Number(m[3]);
+        card.interval = interval;
+        card.ease = ease;
+      } else {
+        badSrLines.push(srLine + 1);
       }
     }
     cards.push(card);
   }
 
   const warnings = [];
+  for (const line of badSrLines) {
+    warnings.push(
+      `${file.split("/").pop()}:${line} 的排程注释格式不对，已按新卡处理` +
+        "（应为 <!--SR:!YYYY-MM-DD,间隔,ease-->，改对日期后重新排程即可）",
+    );
+  }
   if (swallowed) {
     warnings.push(
       `${file.split("/").pop()}：${swallowed} 处 <!-- --> 注释后面紧跟内容行，` +

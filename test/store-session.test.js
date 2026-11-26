@@ -33,6 +33,24 @@ test("有排程的卡：原位替换，条数不变", () => {
   assert.match(text, /^卡 :: 答$/m);
 });
 
+test("格式损坏的排程卡：作答时原位覆盖坏注释，不另插一条", () => {
+  const dir = tmpVault({ "t.md": "#flashcards/t\n\n卡 :: 答\n<!--SR:!2026-12-109,1518,250-->\n" });
+  const file = path.join(dir, "learning/t.md");
+  const { cards, warnings } = parseFile(file, fs.readFileSync(file, "utf8"), S);
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].due, null);
+  assert.match(warnings.join("\n"), /格式不对/);
+  // 整个库加载 + 直方图（Session 构造时会算）都不应崩
+  const library = loadLibrary(dir);
+  const session = new Session({ library, today: "2026-11-26", deck: "t" });
+  assert.equal(session.total, 1);
+  applySchedule(cards[0], "2026-11-29", 3, 250);
+  const text = fs.readFileSync(file, "utf8");
+  assert.equal(countSchedules(text), 1);
+  assert.match(text, /<!--SR:!2026-11-29,3,250-->/);
+  assert.ok(!text.includes("2026-12-109"));
+});
+
 test("新卡：注释插在卡片块之后，多行卡插在答案末行", () => {
   const dir = tmpVault({ "t.md": "#flashcards/t\n\n题\n?\n答一\n答二\n" });
   const file = path.join(dir, "learning/t.md");

@@ -112,6 +112,28 @@ test("deck 由最近的 #flashcards 标签决定，卡前无标签则忽略", ()
   );
 });
 
+test("排程注释格式不对时不崩：按新卡处理并告警，srLine 保留供原位覆盖", () => {
+  // 几种损坏形状都不应让下游崩溃：日期位数不对、不存在的日历日、缺字段
+  const badComments = [
+    "<!--SR:!2026-12-109,1518,250-->",
+    "<!--SR:!2026-02-30,6,230-->",
+    "<!--SR:!2026-13-01,6,230-->",
+    "<!--SR:!2026-10-28,6-->",
+    "<!--SR:!2026-10-28,,230-->",
+  ];
+  for (const comment of badComments) {
+    const text = ["#flashcards/x", "", "Q :: A", comment, ""].join("\n");
+    const { cards, warnings } = parseFile("t.md", text, S);
+    assert.equal(cards.length, 1, comment);
+    assert.equal(cards[0].due, null, comment);
+    assert.equal(cards[0].interval, null, comment);
+    assert.equal(cards[0].ease, null, comment);
+    assert.equal(cards[0].srLine, 3, comment);
+    assert.match(warnings.join("\n"), /格式不对/, comment);
+    assert.ok(!warnings.join("\n").includes("Q :: A"), "告警不应回显卡片内容");
+  }
+});
+
 test("cleanText 去掉 markdown 装饰与工具元数据", () => {
   assert.equal(cleanText("**粗** [[a|显示]] [[b]] &nbsp;==x=="), "粗 显示 b  x");
   assert.equal(cleanText("行一\n<!--SR:!2026-01-01,1,250-->\n行二"), "行一\n行二");

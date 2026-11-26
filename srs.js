@@ -23,7 +23,7 @@ import {
   writeConfig,
 } from "./src/config.js";
 import { deckStats, loadLibrary, Session } from "./src/session.js";
-import { todayStr } from "./src/schedule.js";
+import { isNew, todayStr } from "./src/schedule.js";
 import { Screen } from "./src/ui/screen.js";
 import { runHome } from "./src/ui/home.js";
 import { runReview } from "./src/ui/review.js";
@@ -232,7 +232,7 @@ function printStatus({ library, today, deck, json, vault }) {
 function printList({ library, today, deck }) {
   const { cards } = statusLines({ library, today, deck });
   for (const c of cards) {
-    const st = c.srLine === null
+    const st = isNew(c)
       ? t("common.newCard")
       : c.due <= today
       ? t("common.dueAt", { date: c.due })

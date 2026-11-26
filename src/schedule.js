@@ -11,7 +11,25 @@ export const GRADE_KEYS = Object.fromEntries(RESPONSES.map((r, i) => [String(i +
 
 export const RESPONSE_LABEL = { again: "Again", hard: "Hard", good: "Good", easy: "Easy" };
 
-export const isNew = (card) => card.srLine === null;
+/**
+ * 严格的 YYYY-MM-DD 校验：只看形状不够，Date.UTC 会把 2026-02-30
+ * 悄悄进位成 3 月 2 日，所以要按原值往返核对；非字符串直接判无效，
+ * 避免 daysBetween 里对 null 做 split 而崩溃。
+ */
+export function isValidDateStr(dateStr) {
+  if (typeof dateStr !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/**
+ * 新卡 = 没有 SR 注释行，或注释行没能解析出合法 due。
+ * 后一种是格式损坏的排程注释（如日期位数不对）：parser 会保留 srLine
+ * 以便下次作答时原位覆盖，但排程上必须按新卡处理，否则 buildHistogram
+ * 等处拿到 due=null 就会崩。
+ */
+export const isNew = (card) => card == null || card.srLine === null || !isValidDateStr(card.due);
 
 export const isDue = (card, today) => isNew(card) || card.due <= today;
 
@@ -21,6 +39,7 @@ export function buildHistogram(cards, today) {
   for (const c of cards) {
     if (isNew(c)) continue;
     const k = daysBetween(today, c.due);
+    if (!Number.isFinite(k)) continue;
     hist.set(k, (hist.get(k) || 0) + 1);
   }
   return hist;
@@ -80,7 +99,7 @@ export function osrSchedule(response, interval, ease, delayedDays, settings, his
 
 /** 新卡的初始 ease：插件在笔记加载时按已排程卡的平均值算（log 加权）。 */
 export function noteInitialEase(cardsInNote, settings) {
-  const sched = cardsInNote.filter((c) => !isNew(c));
+  const sched = cardsInNote.filter((c) => !isNew(c) && Number.isFinite(c.ease));
   if (!sched.length) return settings.baseEase;
   const avg = sched.reduce((a, c) => a + c.ease, 0) / sched.length;
   const contrib = Math.min(1, Math.log(sched.length + 0.5) / Math.log(64));
@@ -127,15 +146,22 @@ export function todayStr(d = new Date()) {
 }
 
 function dayNumber(dateStr) {
+  if (!isValidDateStr(dateStr)) return NaN;
   const [y, m, d] = dateStr.split("-").map(Number);
   return Date.UTC(y, m - 1, d);
 }
 
+/**
+ * 日期间隔。入参不是合法 YYYY-MM-DD 时返回 NaN 而不是崩溃，
+ * 调用方（buildHistogram 等）遇到 NaN 应跳过该卡。
+ */
 export function daysBetween(fromStr, toStr) {
+  if (!isValidDateStr(fromStr) || !isValidDateStr(toStr)) return NaN;
   return Math.round((dayNumber(toStr) - dayNumber(fromStr)) / 86400000);
 }
 
 export function addDays(dateStr, days) {
+  if (!isValidDateStr(dateStr)) throw new Error(`日期格式不对：${dateStr}`);
   const d = new Date(dayNumber(dateStr) + days * 86400000);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${
     String(d.getUTCDate()).padStart(2, "0")
